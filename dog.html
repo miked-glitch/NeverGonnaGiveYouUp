@@ -29,10 +29,8 @@
         let speed = 2; // Initial speed
         let distance = 0; // Distance traveled
         let lastTime = 0;
-        const platypusWidth = 50;
-        const platypusHeight = 50;
-        const platypusImage = new Image();
-        platypusImage.src = 'perry.jpg'; // Path to your platypus image in the same directory
+        const characterWidth = 50;
+        const characterHeight = 50;
         const obstacles = [];
         const overheadObstacles = [];
         const obstacleWidth = 60;
@@ -44,12 +42,47 @@
         let health = 100; // Starting health
         let isJumping = false;
         let isSliding = false;
+        let isNitroActive = false;
         const gravity = 0.5;
         let velocityY = 0;
-        let platypusY = canvas.height - platypusHeight - 50;
+        let characterY = canvas.height - characterHeight - 50;
         const jumpHeight = -10;
-        const slideHeight = platypusHeight / 2;
+        const slideHeight = characterHeight / 2;
         let isGameOver = false;
+        let nitro = 0; // Nitro bar
+        let nitroCooldown = 0; // Cooldown for nitro bar
+        let nitroActiveTime = 20000; // Nitro active time in milliseconds
+        let nitroFillInterval = 5 * 60 * 1000; // 5 minutes in milliseconds
+        let nitroLastFillTime = Date.now();
+        let nitroActivationTime = 0; // Time when nitro was activated
+        let score = 0;
+        let scoreMultiplier = 1;
+        let lastScoreUpdateTime = Date.now();
+
+        // Increase health every minute
+        setInterval(() => {
+            if (!isGameOver) {
+                health = Math.min(100, health * 1.28); // Increase health by 28%, cap at 100
+            }
+        }, 60000); // 60000 milliseconds = 1 minute
+
+        // Increase score based on time survived
+        setInterval(() => {
+            if (!isGameOver) {
+                const currentTime = Date.now();
+                const elapsedTime = Math.floor((currentTime - lastScoreUpdateTime) / 1000);
+                if (elapsedTime > 0) {
+                    if (elapsedTime <= 60) {
+                        score += 100 * elapsedTime; // 100 points per second for the first minute
+                    } else {
+                        const secondsSurvived = Math.floor((currentTime - lastScoreUpdateTime) / 1000);
+                        const additionalPoints = 100 * Math.pow(1.10, Math.floor(secondsSurvived / 10) - 1);
+                        score += additionalPoints;
+                    }
+                    lastScoreUpdateTime = currentTime;
+                }
+            }
+        }, 1000); // Update score every second
 
         // Handle keyboard input
         document.addEventListener('keydown', (e) => {
@@ -64,11 +97,21 @@
                     isSliding = true;
                 }
             }
+            if (e.code === 'ShiftLeft') {
+                if (nitro > 0 && !isGameOver) {
+                    isNitroActive = true;
+                    nitro = 0; // Use up the nitro
+                    nitroActivationTime = Date.now();
+                }
+            }
         });
 
         document.addEventListener('keyup', (e) => {
             if (e.code === 'ArrowDown') {
                 isSliding = false;
+            }
+            if (e.code === 'ShiftLeft') {
+                isNitroActive = false;
             }
         });
 
@@ -82,20 +125,33 @@
                 speed *= 1.32; // Increase speed by 32%
             }
 
-            // Update platypus vertical position
+            // Update character vertical position
             if (isJumping) {
-                platypusY += velocityY;
+                characterY += velocityY;
                 velocityY += gravity;
-                if (platypusY >= canvas.height - platypusHeight - 50) {
-                    platypusY = canvas.height - platypusHeight - 50;
+                if (characterY >= canvas.height - characterHeight - 50) {
+                    characterY = canvas.height - characterHeight - 50;
                     isJumping = false;
                 }
             }
 
             if (isSliding) {
-                platypusHeight = slideHeight;
+                characterHeight = slideHeight;
             } else {
-                platypusHeight = 50;
+                characterHeight = 50;
+            }
+
+            // Nitro fill and cooldown
+            const currentTime = Date.now();
+            if (currentTime - nitroLastFillTime > nitroFillInterval) {
+                nitro = 100;
+                nitroLastFillTime = currentTime;
+            }
+
+            if (isNitroActive) {
+                if (currentTime - nitroActivationTime > nitroActiveTime) {
+                    isNitroActive = false;
+                }
             }
 
             // Update obstacle positions
@@ -105,13 +161,15 @@
                     obstacles.splice(i, 1);
                     i--;
                 } else if (checkCollision(obstacles[i])) {
-                    health -= 69; // Reduce health by 69%
+                    if (!isNitroActive) {
+                        health -= 69; // Reduce health by 69%
+                        if (health <= 0) {
+                            health = 0;
+                            isGameOver = true;
+                        }
+                    }
                     obstacles.splice(i, 1);
                     i--;
-                    if (health <= 0) {
-                        health = 0;
-                        isGameOver = true;
-                    }
                 }
             }
 
@@ -121,10 +179,102 @@
                     overheadObstacles.splice(i, 1);
                     i--;
                 } else if (checkCollision(overheadObstacles[i])) {
-                    health -= 69; // Reduce health by 69%
+                    if (!isNitroActive) {
+                        health -= 69; // Reduce health by 69%
+                        if (health <= 0) {
+                            health = 0;
+                            isGameOver = true;
+                        }
+                    }
                     overheadObstacles.splice(i, 1);
                     i--;
-                    if (health <= 0
+                }
+            }
+
+            // Add new obstacles
+            if (currentTime - lastObstacleTime > obstacleFrequency) {
+                lastObstacleTime = currentTime;
+                if (Math.random() > 0.5) {
+                    obstacles.push({
+                        x: canvas.width,
+                        y: canvas.height - obstacleHeight - 50
+                    });
+                } else {
+                    overheadObstacles.push({
+                        x: canvas.width,
+                        y: canvas.height / 4
+                    });
+                }
+            }
+        }
+
+        function checkCollision(obstacle) {
+            return !(characterY + characterHeight < obstacle.y ||
+                     characterY > obstacle.y + obstacleHeight ||
+                     50 + characterWidth < obstacle.x ||
+                     50 > obstacle.x + obstacleWidth);
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw the ground
+            ctx.fillStyle = '#2E8B57'; // Green ground
+            ctx.fillRect(0, canvas.height - 50, canvas.width, 50);
+
+            // Draw the character (green block)
+            ctx.fillStyle = '#228B22'; // Green color for the character
+            ctx.fillRect(50, characterY, characterWidth, characterHeight);
+
+            // Draw obstacles
+            ctx.fillStyle = '#8B4513'; // Obstacle color
+            for (const obstacle of obstacles) {
+                ctx.fillRect(obstacle.x, obstacle.y, obstacleWidth, obstacleHeight);
+            }
+
+            ctx.fillStyle = '#A0522D'; // Overhead obstacle color
+            for (const overheadObstacle of overheadObstacles) {
+                ctx.fillRect(overheadObstacle.x, overheadObstacle.y, overheadObstacleWidth, overheadObstacleHeight);
+            }
+
+            // Draw health bar
+            ctx.fillStyle = 'red';
+            ctx.fillRect(10, 10, 100, 20);
+            ctx.fillStyle = 'green';
+            ctx.fillRect(10, 10, health, 20);
+
+            // Draw nitro bar
+            ctx.fillStyle = 'grey';
+            ctx.fillRect(10, 40, 100, 20);
+            ctx.fillStyle = 'blue';
+            ctx.fillRect(10, 40, nitro, 20);
+
+            // Draw score
+            ctx.fillStyle = 'black';
+            ctx.font = '24px Arial';
+            ctx.fillText('Score: ' + score, 10, 70);
+
+            // Draw game over message
+            if (isGameOver) {
+                ctx.fillStyle = 'black';
+                ctx.font = '48px serif';
+                ctx.fillText('Game Over', canvas.width / 2 - 100, canvas.height / 2);
+            }
+        }
+
+        function gameLoop(timestamp) {
+            const deltaTime = timestamp - lastTime;
+            lastTime = timestamp;
+
+            update(deltaTime);
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        requestAnimationFrame(gameLoop);
+    </script>
+</body>
+</html>
 
 
 
