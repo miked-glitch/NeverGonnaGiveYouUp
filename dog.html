@@ -77,6 +77,7 @@
 
             distance += speed;
 
+            // Increase speed every 100 studs
             if (Math.floor(distance / 100) * 100 === distance) {
                 speed *= 1.32; // Increase speed by 32%
             }
@@ -123,89 +124,7 @@
                     health -= 69; // Reduce health by 69%
                     overheadObstacles.splice(i, 1);
                     i--;
-                    if (health <= 0) {
-                        health = 0;
-                        isGameOver = true;
-                    }
-                }
-            }
+                    if (health <= 0
 
-            // Add new obstacles
-            const now = Date.now();
-            if (now - lastObstacleTime > obstacleFrequency) {
-                lastObstacleTime = now;
-                if (Math.random() > 0.5) {
-                    obstacles.push({
-                        x: canvas.width,
-                        y: canvas.height - obstacleHeight - 50
-                    });
-                } else {
-                    overheadObstacles.push({
-                        x: canvas.width,
-                        y: canvas.height / 4
-                    });
-                }
-            }
-        }
-
-        function checkCollision(obstacle) {
-            return !(platypusY + platypusHeight < obstacle.y ||
-                     platypusY > obstacle.y + obstacleHeight ||
-                     50 + platypusWidth < obstacle.x ||
-                     50 > obstacle.x + obstacleWidth);
-        }
-
-        function draw() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-            // Draw the ground
-            ctx.fillStyle = '#2E8B57'; // Green ground
-            ctx.fillRect(0, canvas.height - 50, canvas.width, 50);
-
-            // Draw the platypus
-            ctx.drawImage(platypusImage, 50, platypusY, platypusWidth, platypusHeight);
-
-            // Draw obstacles
-            ctx.fillStyle = '#8B4513'; // Obstacle color
-            for (const obstacle of obstacles) {
-                ctx.fillRect(obstacle.x, obstacle.y, obstacleWidth, obstacleHeight);
-            }
-
-            ctx.fillStyle = '#A0522D'; // Overhead obstacle color
-            for (const overheadObstacle of overheadObstacles) {
-                ctx.fillRect(overheadObstacle.x, overheadObstacle.y, overheadObstacleWidth, overheadObstacleHeight);
-            }
-
-            // Draw health
-            ctx.fillStyle = 'red';
-            ctx.fillRect(10, 10, 100, 20);
-            ctx.fillStyle = 'green';
-            ctx.fillRect(10, 10, health, 20);
-
-            // Draw game over message
-            if (isGameOver) {
-                ctx.fillStyle = 'black';
-                ctx.font = '48px serif';
-                ctx.fillText('Game Over', canvas.width / 2 - 100, canvas.height / 2);
-            }
-        }
-
-        function gameLoop(timestamp) {
-            const deltaTime = timestamp - lastTime;
-            lastTime = timestamp;
-
-            update(deltaTime);
-            draw();
-            requestAnimationFrame(gameLoop);
-        }
-
-        platypusImage.onload = () => {
-            requestAnimationFrame(gameLoop);
-        };
-    </script>
-</body>
-</html>
-
-</html>
 
 
