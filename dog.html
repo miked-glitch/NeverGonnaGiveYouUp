@@ -256,6 +256,24 @@
                 ctx.fillStyle = 'black';
                 ctx.font = '48px serif';
                 ctx.fillText('Game Over', canvas.width / 2 -
+                                             ctx.fillText('Game Over', canvas.width / 2 - 100, canvas.height / 2);
+            }
+        }
+
+        function gameLoop(timestamp) {
+            const deltaTime = timestamp - lastTime;
+            lastTime = timestamp;
+
+            update(deltaTime);
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        requestAnimationFrame(gameLoop);
+    </script>
+</body>
+</html>
+
 
 
 
