@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Endless Running Game</title>
+    <title>Platypus Endless Runner</title>
     <style>
         body {
             margin: 0;
@@ -28,6 +28,13 @@
         let speed = 2; // Initial speed
         let distance = 0; // Distance traveled
         let lastTime = 0;
+        const platypusWidth = 50;
+        const platypusHeight = 50;
+        const obstacles = [];
+        const obstacleWidth = 60;
+        const obstacleHeight = 60;
+        const obstacleFrequency = 2000; // Add obstacles every 2 seconds
+        let lastObstacleTime = 0;
 
         function update(deltaTime) {
             distance += speed;
@@ -35,18 +42,43 @@
             if (Math.floor(distance / 100) * 100 === distance) {
                 speed *= 1.32; // Increase speed by 32%
             }
+            
+            // Update obstacle positions
+            for (let i = 0; i < obstacles.length; i++) {
+                obstacles[i].x -= speed;
+                if (obstacles[i].x + obstacleWidth < 0) {
+                    obstacles.splice(i, 1);
+                    i--;
+                }
+            }
+            
+            // Add new obstacles
+            const now = Date.now();
+            if (now - lastObstacleTime > obstacleFrequency) {
+                lastObstacleTime = now;
+                obstacles.push({
+                    x: canvas.width,
+                    y: canvas.height - obstacleHeight - 50
+                });
+            }
         }
 
         function draw() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             
-            // Draw a simple ground
+            // Draw the ground
             ctx.fillStyle = '#2E8B57'; // Green ground
             ctx.fillRect(0, canvas.height - 50, canvas.width, 50);
             
-            // Draw the runner (represented by a simple rectangle for now)
-            ctx.fillStyle = '#FF4500'; // Runner color
-            ctx.fillRect(50, canvas.height - 100, 50, 50);
+            // Draw the platypus
+            ctx.fillStyle = '#D2691E'; // Platypus color
+            ctx.fillRect(50, canvas.height - platypusHeight - 50, platypusWidth, platypusHeight);
+            
+            // Draw obstacles
+            ctx.fillStyle = '#8B4513'; // Obstacle color
+            for (const obstacle of obstacles) {
+                ctx.fillRect(obstacle.x, obstacle.y, obstacleWidth, obstacleHeight);
+            }
         }
 
         function gameLoop(timestamp) {
@@ -60,7 +92,7 @@
 
         requestAnimationFrame(gameLoop);
     </script>
-    <br><a href="https://miked-glitch.github.io/NeverGonnaGiveYouUp/jeff.jpg" class="nav-button">Go to next page</a>
 </body>
 </html>
+
 
