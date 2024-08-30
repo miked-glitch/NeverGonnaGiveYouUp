@@ -1,75 +1,65 @@
-<html>
-      <head>
-      <title>
-       s̵̨̛͈̮̠̲̠͕̈́̐͋̀̉̽m̶̨̧̨͇͎̺̻͖͙̞͕̼̪̘̯͔̬͉̭̒̂̐͌̔̉̀̎̂̈̀͋́̅̆̔́͊̃̓̄̕̚͠ͅȋ̷̡̛̼̦͇͎̯͖̣͎̳͉̜̺̠̦̮̯̖̗̣̬̆̈́͋̐̄̆̈͋̋̍̈̓̐̆̃̄̓͛͊̾͑̋̈́̍̕̕͘̚ͅḽ̶̡̡̼͔̭̙̖̱̣̳̠͕̯͍͙͙̺͔͎̝̙͖̺̫̝͉̘̂̀̒͐͛̑̅͌͆͋̒̾̕̕̕͠͝ͅḛ̷̫͈͉̪͚͓̙̼͔͈̮̫̥͚̙͙̾̄̾͜͜
-       </title>
-      <head>
-<body>
-
- <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Full Page Hidden Button</title>
-    <style>
-        /* Style for hidden button */
-        #test-button {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100vw; /* Full viewport width */
-            height: 100vh; /* Full viewport height */
-            background-color: transparent; /* Transparent background */
-            border: none; /* No border */
-            cursor: pointer; /* Pointer cursor on hover */
-            z-index: 1000; /* Ensure it’s above other content */
-            opacity: 0; /* Make it invisible */
-            pointer-events: auto; /* Allow clicks on the button */
-        }
-        body {
-            margin: 0; /* Remove default margin */
-        }
-    </style>
-</head>
-<body>
-<br>Incase still not subbed, subscribe
-      goal-100
-<br>
-    <!-- Hidden full-page button -->
-    <button id="test-button" onclick="triggerHiddenLink()">Test Hidden Link</button>
-
-    <a id="hidden-link" href="https://youtube.com/@zonkeddart?si=gnwiXYVz98CXEkRp" class="hidden-link" aria-label="Watch YouTube video">sub my youtube channel
-
-    <script>
-        function triggerHiddenLink() {
-            document.getElementById('hidden-link').click();
-        }
-    </script>
-  <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Navigation Button</title>
+    <title>Endless Running Game</title>
     <style>
-        .nav-button {
-            display: inline-block;
-            padding: 10px 20px;
-            font-size: 16px;
-            color: #fff;
-            background-color: #007bff;
-            border: none;
-            border-radius: 5px;
-            text-decoration: none;
-            text-align: center;
-            cursor: pointer;
-            transition: background-color 0.3s ease;
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #87CEEB; /* Light blue background */
         }
-
-        .nav-button:hover {
-            background-color: #0056b3;
+        canvas {
+            display: block;
         }
     </style>
 </head>
 <body>
-    <br><a href="https://miked-glitch.github.io/NeverGonnaGiveYouUp/jeff.jpg" class="nav-button">Go to next page</a>
+    <canvas id="gameCanvas"></canvas>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Set canvas size
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        let speed = 2; // Initial speed
+        let distance = 0; // Distance traveled
+        let lastTime = 0;
+
+        function update(deltaTime) {
+            distance += speed;
+            
+            if (Math.floor(distance / 100) * 100 === distance) {
+                speed *= 1.32; // Increase speed by 32%
+            }
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw a simple ground
+            ctx.fillStyle = '#2E8B57'; // Green ground
+            ctx.fillRect(0, canvas.height - 50, canvas.width, 50);
+            
+            // Draw the runner (represented by a simple rectangle for now)
+            ctx.fillStyle = '#FF4500'; // Runner color
+            ctx.fillRect(50, canvas.height - 100, 50, 50);
+        }
+
+        function gameLoop(timestamp) {
+            const deltaTime = timestamp - lastTime;
+            lastTime = timestamp;
+
+            update(deltaTime);
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        requestAnimationFrame(gameLoop);
+    </script>
 </body>
 </html>
+
