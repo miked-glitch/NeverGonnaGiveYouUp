@@ -185,10 +185,10 @@
         }
 
         function openShop() {
-            if (player.coins >= 1000) {
-                const buyGlider = confirm("Do you want to buy the glider for 1000 coins?");
+            if (player.coins >= 10) {
+                const buyGlider = confirm("Do you want to buy the glider for 10 coins?");
                 if (buyGlider) {
-                    player.coins -= 1000;
+                    player.coins -= 10;
                     player.hasGlider = true;
                     document.getElementById('coins').innerText = 'Coins: ' + player.coins;
                     alert("You have purchased the glider! Press Spacebar or Up Arrow to fly.");
