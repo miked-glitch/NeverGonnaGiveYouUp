@@ -1,178 +1,41 @@
-# HTML and JavaScript code generation for the endless runner game
-
-html_code = '''
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Endless Runner Game</title>
-    <style>
-        body { margin: 0; overflow: hidden; background: #f0f0f0; }
-        canvas { display: block; background: #87CEEB; }
-        #health { position: absolute; top: 10px; left: 10px; font-size: 20px; }
-        #nitro { position: absolute; top: 10px; right: 10px; font-size: 20px; }
-    </style>
-</head>
-<body>
-    <div id="health">Health: 420</div>
-    <div id="nitro">Nitro: Inactive</div>
-    <canvas id="gameCanvas"></canvas>
-
-    <script>
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
-
-        const gravity = 7.69;
-        let player = { x: 50, y: canvas.height - 150, width: 50, height: 50, dy: 0, jumping: false, sliding: false, health: 420 };
-        let obstacles = [];
-        let flyingObstacles = [];
-        let nitroActive = false;
-        let speed = 5;
-        let nitroTimer = 0;
-        let nitroCooldown = 120000; // 2 minutes
-        let nitroDuration = 20000; // 20 seconds
-        let flyingObstacleTimer = 0;
-        let obstacleTimer = 0;
-
-        function drawPlayer() {
-            ctx.fillStyle = 'green';
-            ctx.fillRect(player.x, player.y, player.width, player.height);
-        }
-
-        function drawObstacles() {
-            ctx.fillStyle = 'red';
-            obstacles.forEach(obstacle => {
-                obstacle.x -= speed;
-                ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
-            });
-            obstacles = obstacles.filter(obstacle => obstacle.x + obstacle.width > 0);
-        }
-
-        function drawFlyingObstacles() {
-            ctx.fillStyle = 'orange';
-            flyingObstacles.forEach(obstacle => {
-                obstacle.x -= speed;
-                ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
-            });
-            flyingObstacles = flyingObstacles.filter(obstacle => obstacle.x + obstacle.width > 0);
-        }
-
-        function applyGravity() {
-            if (player.jumping || player.sliding) {
-                player.dy += gravity * 0.1;
-                player.y += player.dy;
-                if (player.y + player.height >= canvas.height - 100 && !player.sliding) {
-                    player.y = canvas.height - 150;
-                    player.dy = 0;
-                    player.jumping = false;
+function handleCollisions() {
+    obstacles.forEach(obstacle => {
+        if (player.x < obstacle.x + obstacle.width &&
+            player.x + player.width > obstacle.x &&
+            player.y < obstacle.y + obstacle.height &&
+            player.y + player.height > obstacle.y) {
+            if (!nitroActive) {
+                player.health -= player.health * 0.69;
+                if (player.health <= 0) {
+                    player.health = 0;
+                    gameOver();
                 }
-                if (player.y + player.height >= canvas.height - 50 && player.sliding) {
-                    player.y = canvas.height - 100;
-                    player.dy = 0;
-                    player.sliding = false;
+                document.getElementById('health').innerText = 'Health: ' + Math.round(player.health);
+            }
+            obstacle.x = -obstacle.width;
+        }
+    });
+
+    flyingObstacles.forEach(obstacle => {
+        if (player.x < obstacle.x + obstacle.width &&
+            player.x + player.width > obstacle.x &&
+            player.y < obstacle.y + obstacle.height &&
+            player.y + player.height > obstacle.y) {
+            if (!nitroActive) {
+                player.health -= player.health * 0.69;
+                if (player.health <= 0) {
+                    player.health = 0;
+                    gameOver();
                 }
+                document.getElementById('health').innerText = 'Health: ' + Math.round(player.health);
             }
+            obstacle.x = -obstacle.width;
         }
+    });
+}
 
-        function handleCollisions() {
-            obstacles.forEach(obstacle => {
-                if (player.x < obstacle.x + obstacle.width &&
-                    player.x + player.width > obstacle.x &&
-                    player.y < obstacle.y + obstacle.height &&
-                    player.y + player.height > obstacle.y) {
-                    if (!nitroActive) {
-                        player.health -= player.health * 0.69;
-                        document.getElementById('health').innerText = 'Health: ' + Math.round(player.health);
-                    }
-                    obstacle.x = -obstacle.width;
-                }
-            });
+function gameOver() {
+    alert("Game Over!");
+    document.location.reload();
+}
 
-            flyingObstacles.forEach(obstacle => {
-                if (player.x < obstacle.x + obstacle.width &&
-                    player.x + player.width > obstacle.x &&
-                    player.y < obstacle.y + obstacle.height &&
-                    player.y + player.height > obstacle.y) {
-                    if (!nitroActive) {
-                        player.health -= player.health * 0.69;
-                        document.getElementById('health').innerText = 'Health: ' + Math.round(player.health);
-                    }
-                    obstacle.x = -obstacle.width;
-                }
-            });
-        }
-
-        function activateNitro() {
-            nitroActive = true;
-            speed *= 4;
-            document.getElementById('nitro').innerText = 'Nitro: Active';
-            setTimeout(() => {
-                nitroActive = false;
-                speed /= 4;
-                document.getElementById('nitro').innerText = 'Nitro: Inactive';
-                nitroTimer = 0; // Reset the nitro timer
-            }, nitroDuration);
-        }
-
-        function generateObstacles() {
-            if (obstacleTimer > 50) { // Every 50 frames
-                obstacles.push({ x: canvas.width, y: canvas.height - 150, width: 50, height: 50 });
-                obstacleTimer = 0;
-            }
-            obstacleTimer++;
-        }
-
-        function generateFlyingObstacles() {
-            if (flyingObstacleTimer > 70) { // Every 70 frames
-                flyingObstacles.push({ x: canvas.width, y: canvas.height - 200, width: 50, height: 50 });
-                flyingObstacleTimer = 0;
-            }
-            flyingObstacleTimer++;
-        }
-
-        function gameLoop() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            drawPlayer();
-            drawObstacles();
-            drawFlyingObstacles();
-            applyGravity();
-            handleCollisions();
-            generateObstacles();
-            if (nitroTimer > nitroCooldown) activateNitro();
-            if (Date.now() - startTime > 20000) generateFlyingObstacles();
-            nitroTimer += 16.67;
-            requestAnimationFrame(gameLoop);
-        }
-
-        let startTime = Date.now();
-        gameLoop();
-
-        window.addEventListener('keydown', (e) => {
-            if ((e.code === 'Space' || e.code === 'ArrowUp') && !player.jumping && !player.sliding) {
-                player.dy = -20;
-                player.jumping = true;
-            }
-            if (e.code === 'ArrowDown' && !player.jumping) {
-                player.y = canvas.height - 100;
-                player.sliding = true;
-            }
-        });
-
-        window.addEventListener('resize', () => {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-        });
-    </script>
-</body>
-</html>
-'''
-
-# Save the generated HTML to a file
-html_file_path = '/mnt/data/endless_runner_game.html'
-with open(html_file_path, 'w') as file:
-    file.write(html_code)
-
-html_file_path
