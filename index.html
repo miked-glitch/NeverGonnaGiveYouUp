@@ -1,279 +1,178 @@
-<html>
-      <head>
-      <title>
-       s̶̬͂͋̍͑̃͜m̵̛̖̠̭̞̆̄̇̃i̸̩̹͚͛̈́l̴̯̫̺̪̆ę̵̹̳̳̍̿͊͊
-       </title>
-      <head>
-<body>
+# HTML and JavaScript code generation for the endless runner game
 
+html_code = '''
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>       s̶̬͂͋̍͑̃͜m̵̛̖̠̭̞̆̄̇̃i̸̩̹͚͛̈́l̴̯̫̺̪̆ę̵̹̳̳̍̿͊͊ </title>
+    <title>Endless Runner Game</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-        }
-        header {
-            background-color: #4CAF50;
-            color: white;
-            padding: 1em;
-            text-align: center;
-        }
-        nav {
-            background-color: #333;
-            overflow: hidden;
-        }
-        nav a {
-            float: left;
-            display: block;
-            color: white;
-            text-align: center;
-            padding: 14px 16px;
-            text-decoration: none;
-        }
-        nav a:hover {
-            background-color: #ddd;
-            color: black;
-        }
-        .main-content {
-            padding: 1em;
-        }
-        footer {
-            background-color: #333;
-            color: white;
-            text-align: center;
-            padding: 1em;
-            position: fixed;
-            width: 100%;
-            bottom: 0;
-        }
+        body { margin: 0; overflow: hidden; background: #f0f0f0; }
+        canvas { display: block; background: #87CEEB; }
+        #health { position: absolute; top: 10px; left: 10px; font-size: 20px; }
+        #nitro { position: absolute; top: 10px; right: 10px; font-size: 20px; }
     </style>
 </head>
 <body>
-    <header>
-        <h1>       s̶̬͂͋̍͑̃͜m̵̛̖̠̭̞̆̄̇̃i̸̩̹͚͛̈́l̴̯̫̺̪̆ę̵̹̳̳̍̿͊͊
-    </header>
-    <nav>
+    <div id="health">Health: 420</div>
+    <div id="nitro">Nitro: Inactive</div>
+    <canvas id="gameCanvas"></canvas>
 
-
-       <!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Redirect Example</title>
     <script>
-        function redirectToImage(event) {
-            event.preventDefault();
-            window.location.href = "https://miked-glitch.github.io/NeverGonnaGiveYouUp/myhouse.jpg";
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        const gravity = 7.69;
+        let player = { x: 50, y: canvas.height - 150, width: 50, height: 50, dy: 0, jumping: false, sliding: false, health: 420 };
+        let obstacles = [];
+        let flyingObstacles = [];
+        let nitroActive = false;
+        let speed = 5;
+        let nitroTimer = 0;
+        let nitroCooldown = 120000; // 2 minutes
+        let nitroDuration = 20000; // 20 seconds
+        let flyingObstacleTimer = 0;
+        let obstacleTimer = 0;
+
+        function drawPlayer() {
+            ctx.fillStyle = 'green';
+            ctx.fillRect(player.x, player.y, player.width, player.height);
         }
+
+        function drawObstacles() {
+            ctx.fillStyle = 'red';
+            obstacles.forEach(obstacle => {
+                obstacle.x -= speed;
+                ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+            });
+            obstacles = obstacles.filter(obstacle => obstacle.x + obstacle.width > 0);
+        }
+
+        function drawFlyingObstacles() {
+            ctx.fillStyle = 'orange';
+            flyingObstacles.forEach(obstacle => {
+                obstacle.x -= speed;
+                ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+            });
+            flyingObstacles = flyingObstacles.filter(obstacle => obstacle.x + obstacle.width > 0);
+        }
+
+        function applyGravity() {
+            if (player.jumping || player.sliding) {
+                player.dy += gravity * 0.1;
+                player.y += player.dy;
+                if (player.y + player.height >= canvas.height - 100 && !player.sliding) {
+                    player.y = canvas.height - 150;
+                    player.dy = 0;
+                    player.jumping = false;
+                }
+                if (player.y + player.height >= canvas.height - 50 && player.sliding) {
+                    player.y = canvas.height - 100;
+                    player.dy = 0;
+                    player.sliding = false;
+                }
+            }
+        }
+
+        function handleCollisions() {
+            obstacles.forEach(obstacle => {
+                if (player.x < obstacle.x + obstacle.width &&
+                    player.x + player.width > obstacle.x &&
+                    player.y < obstacle.y + obstacle.height &&
+                    player.y + player.height > obstacle.y) {
+                    if (!nitroActive) {
+                        player.health -= player.health * 0.69;
+                        document.getElementById('health').innerText = 'Health: ' + Math.round(player.health);
+                    }
+                    obstacle.x = -obstacle.width;
+                }
+            });
+
+            flyingObstacles.forEach(obstacle => {
+                if (player.x < obstacle.x + obstacle.width &&
+                    player.x + player.width > obstacle.x &&
+                    player.y < obstacle.y + obstacle.height &&
+                    player.y + player.height > obstacle.y) {
+                    if (!nitroActive) {
+                        player.health -= player.health * 0.69;
+                        document.getElementById('health').innerText = 'Health: ' + Math.round(player.health);
+                    }
+                    obstacle.x = -obstacle.width;
+                }
+            });
+        }
+
+        function activateNitro() {
+            nitroActive = true;
+            speed *= 4;
+            document.getElementById('nitro').innerText = 'Nitro: Active';
+            setTimeout(() => {
+                nitroActive = false;
+                speed /= 4;
+                document.getElementById('nitro').innerText = 'Nitro: Inactive';
+                nitroTimer = 0; // Reset the nitro timer
+            }, nitroDuration);
+        }
+
+        function generateObstacles() {
+            if (obstacleTimer > 50) { // Every 50 frames
+                obstacles.push({ x: canvas.width, y: canvas.height - 150, width: 50, height: 50 });
+                obstacleTimer = 0;
+            }
+            obstacleTimer++;
+        }
+
+        function generateFlyingObstacles() {
+            if (flyingObstacleTimer > 70) { // Every 70 frames
+                flyingObstacles.push({ x: canvas.width, y: canvas.height - 200, width: 50, height: 50 });
+                flyingObstacleTimer = 0;
+            }
+            flyingObstacleTimer++;
+        }
+
+        function gameLoop() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawPlayer();
+            drawObstacles();
+            drawFlyingObstacles();
+            applyGravity();
+            handleCollisions();
+            generateObstacles();
+            if (nitroTimer > nitroCooldown) activateNitro();
+            if (Date.now() - startTime > 20000) generateFlyingObstacles();
+            nitroTimer += 16.67;
+            requestAnimationFrame(gameLoop);
+        }
+
+        let startTime = Date.now();
+        gameLoop();
+
+        window.addEventListener('keydown', (e) => {
+            if ((e.code === 'Space' || e.code === 'ArrowUp') && !player.jumping && !player.sliding) {
+                player.dy = -20;
+                player.jumping = true;
+            }
+            if (e.code === 'ArrowDown' && !player.jumping) {
+                player.y = canvas.height - 100;
+                player.sliding = true;
+            }
+        });
+
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        });
     </script>
-</head>
-<body>
-    <a href="#home" onclick="redirectToImage(event)">Home-Homeless</a>
 </body>
 </html>
+'''
 
-        <a href="#services">Services-I do u</a>
-        <a href="#contact">Contact me- laughingatthewholething@gmail.com </a>
-    </nav>
-    <div class="main-content">
-        <h2>Home</h2>
-        <p>Rick astley
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lyrics</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 20px;
-        }
-    </style>
-</head>
-<body>
-    <h1>Never Gonna Give You Up</h1>
-    <p>
-        We're no strangers to love<br>
-        You know the rules and so do I (do I)<br>
-        A full commitment's what I'm thinking of<br>
-        You wouldn't get this from any other guy<br>
-        I just wanna tell you how I'm feeling<br>
-        Gotta make you understand<br>
-        Never gonna give you up<br>
-        Never gonna let you down<br>
-        Never gonna run around and desert you<br>
-        Never gonna make you cry<br>
-        Never gonna say goodbye<br>
-        Never gonna tell a lie and hurt you<br>
-        We've known each other for so long<br>
-        Your heart's been aching, but you're too shy to say it (say it)<br>
-        Inside, we both know what's been going on (going on)<br>
-        We know the game and we're gonna play it<br>
-        And if you ask me how I'm feeling<br>
-        Don't tell me you're too blind to see<br>
-        Never gonna give you up<br>
-        Never gonna let you down<br>
-        Never gonna run around and desert you<br>
-        Never gonna make you cry<br>
-        Never gonna say goodbye<br>
-        Never gonna tell a lie and hurt you<br>
-        Never gonna give you up<br>
-        Never gonna let you down<br>
-        Never gonna run around and desert you<br>
-        Never gonna make you cry<br>
-        Never gonna say goodbye<br>
-        Never gonna tell a lie and hurt you<br>
-        We've known each other for so long<br>
-        Your heart's been aching, but you're too shy to say it (to say it)<br>
-        Inside, we both know what's been going on (going on)<br>
-        We know the game and we're gonna play it<br>
-        I just wanna tell you how I'm feeling<br>
-        Gotta make you understand<br>
-        Never gonna give you up<br>
-        Never gonna let you down<br>
-        Never gonna run around and desert you<br>
-        Never gonna make you cry<br>
-        Never gonna say goodbye<br>
-        Never gonna tell a lie and hurt you<br>
-        Never gonna give you up<br>
-        Never gonna let you down<br>
-        Never gonna run around and desert you<br>
-        Never gonna make you cry<br>
-        Never gonna say goodbye<br>
-        Never gonna tell a lie and hurt you<br>
-        Never gonna give you up<br>
-        Never gonna let you down<br>
-        Never gonna run around and desert you<br>
-        Never gonna make you cry<br>
-        Never gonna say goodbye<br>
-        Never gonna tell a lie and hurt you
-    </p>
-</body>
-</html>
+# Save the generated HTML to a file
+html_file_path = '/mnt/data/endless_runner_game.html'
+with open(html_file_path, 'w') as file:
+    file.write(html_code)
 
-
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hidden Link</title>
-    <style>
-        .blended-link {
-                <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Blended Link Highlight</title>
-    <style>
-        .blended-link {
-            color: blue; /* Set the link color to blue */
-            text-decoration: none; /* Remove the underline */
-            cursor: pointer; /* Change the cursor to a pointer */
-        }
-
-        .blended-link:hover {
-            color: darkblue; /* Change the color on hover */
-            text-decoration: underline; /* Add underline on hover */
-        }
-    </style>
-</head>
-<body>
-    <p>We're no strangers to love
-    <br>You know the rules and so do I (do I)
-    <br>A full commitment's what I'm thinking of
-    <br>You wouldn't get this from any other guy
-    <br>I just wanna tell you how I'm feeling
-    <br>Gotta make you understand
-    <br>Never gonna give you up
-    <br>Never gonna let you down
-    <br>Never gonna run around and desert you
-    <br>Never gonna make you cry
-    <br>Never gonna say goodbye
-    <br>Never gonna tell a lie and hurt you
-    <br>We've known each other for so long
-    <br>Your heart's been aching, but you're too shy to say it (say it)
-    <br>Inside, we both know what's been going on (going on)
-    <br>We know the game and we're gonna play it
-    <br>And if you ask me how I'm feeling
-    <br>Don't tell me you're too blind to see
-    <br>Never gonna give you up
-    <br>Never gonna let you down
-    <br>Never gonna run around and desert you
-    <br>Never gonna make you cry
-    <br>Never gonna say goodbye
-    <br>Never gonna tell a lie and hurt you
-    <br>Never gonna give you up
-    <br>Never gonna let you down
-    <br>Never gonna run around and desert you
-    <br>Never gonna make you cry
-    <br>Never gonna say goodbye
-    <br>Never gonna tell a lie and hurt you
-    <br>We've known each other for so long
-    <br>Your heart's been aching, but you're too shy to say it (to say it)
-    <br>Inside, we both know what's been going on (going on)
-    <br>We know the game and we're gonna play it
-    <br>I just wanna tell you how I'm feeling
-    <br>Gotta make you understand
-    <br>Never gonna give you up
-    <br>Never gonna let you down
-    <br>Never gonna run around and desert you
-    <br>Never gonna make you cry
-    <br>Never gonna say goodbye
-    <br>Never gonna tell a lie and hurt you
-    <br>Never gonna give you up
-    <br>Never gonna let you down
-    <br>Never gonna run around and desert you
-    <br>Never gonna make you cry
-    <br>Never gonna say goodbye
-    <br>Never gonna tell a lie and hurt you
-    <br>Never gonna give you up
-    <br>Never gonna let you down
-    <br>Never gonna run around and desert you
-    <br>Never gonna make you cry
-    <br>Never gonna say goodbye
-    <br>Never gonna tell a lie and hurt you
-   
-      
-          
-          <br><a href="https://www.youtube.com/watch?v=dQw4w9WgXcQ&pp=ygUXbmV2ZXIgZ29ubmEgZ2l2ZSB5b3UgdXA%3D" class="blended-link">Learn more</a>
-    </p>
-          <br><br><a href="https://youtube.com/@zonkeddart?si=gnwiXYVz98CXEkRp" class="blended-link">Making this website wasted 1 hours of my time so atleast subscribe to my youtube</a>
-    </p>
-    <!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Navigation Button</title>
-    <style>
-        .nav-button {
-            display: inline-block;
-            padding: 10px 20px;
-            font-size: 16px;
-            color: #fff;
-            background-color: #007bff;
-            border: none;
-            border-radius: 5px;
-            text-decoration: none;
-            text-align: center;
-            cursor: pointer;
-            transition: background-color 0.3s ease;
-        }
-
-        .nav-button:hover {
-            background-color: #0056b3;
-        }
-    </style>
-</head>
-<body>
-    <a href="https://miked-glitch.github.io/NeverGonnaGiveYouUp/dog.html" class="nav-button">lil game for you </a>
-</body>
-</html>
+html_file_path
