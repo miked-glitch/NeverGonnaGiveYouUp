@@ -39,7 +39,6 @@
         let nitroTimer = 0;
         let nitroCooldown = 120000; // 2 minutes
         let nitroDuration = 20000; // 20 seconds
-        let flyingObstacleTimer = 0;
         let obstacleTimer = 0;
         let coinTimer = 0;
         let shopOpen = false;
@@ -63,16 +62,8 @@
             obstacles = obstacles.filter(obstacle => obstacle.x + obstacle.width > 0);
         }
 
-        function drawFlyingObstacles() {
-            ctx.fillStyle = 'orange';
-            flyingObstacles.forEach(obstacle => {
-                obstacle.x -= speed;
-                ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
-            });
-            flyingObstacles = flyingObstacles.filter(obstacle => obstacle.x + obstacle.width > 0);
-        }
-
-        function drawCoins() {
+    
+        function rawCoins() {
             ctx.fillStyle = 'yellow';
             coins.forEach(coin => {
                 coin.x -= speed;
@@ -243,6 +234,13 @@
             if (e.code === 'KeyS') {
                 openShop();
             }
+            const el = document.querySelector("canvas");
+            <div id="controls">
+        <button id="jumpButton">Jump</button>
+        <button id="slideButton">Slide</button>
+        <button id="nitroButton">Nitro</button>
+    </div>
+    
         });
 
         window.addEventListener('resize', () => {
