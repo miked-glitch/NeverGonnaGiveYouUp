@@ -33,7 +33,7 @@
 
         const gravity = 9.8;
         const groundHeight = 100; // Height of the ground
-        let player = { x: 50, y: canvas.height - groundHeight - 50, width: 50, height: 50, dy: 0, jumping: false, sliding: false, health: 420, coins: 0, hasGlider: false };
+        let player = { x: 50, y: canvas.height - groundHeight - 50, width: 50, height: 50, dy: 0, jumping: false, sliding: false, health: 100, coins: 0, hasGlider: false };
         let obstacles = [];
         let coins = [];
         let nitroAvailable = false;
@@ -124,7 +124,7 @@
                     player.coins += 1;
                     document.getElementById('coins').innerText = 'Coins: ' + player.coins;
                     coin.x = -coin.radius;
-                    updateScore(10); // Increase score by 10 for each coin
+                    updateScore(1000); // Increase score by 10 for each coin
                     saveCoins(); // Save coins to localStorage
                 }
             });
