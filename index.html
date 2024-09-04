@@ -43,6 +43,7 @@
         let coinTimer = 0;
         let shopOpen = false;
         let score = 0;
+        let nextObstacleDistance = Math.random() * 200 + 300; // Random initial distance
 
         function drawPlayer() {
             let img = new Image();
@@ -139,9 +140,10 @@
         }
 
         function generateObstacles() {
-            if (obstacleTimer > 50) { // Every 50 frames
+            if (obstacleTimer > nextObstacleDistance / speed) { // Variable distance based on speed
                 obstacles.push({ x: canvas.width, y: canvas.height - groundHeight - 50, width: 50, height: 50 });
                 obstacleTimer = 0;
+                nextObstacleDistance = Math.random() * 200 + 300; // Randomize next obstacle distance
             }
             obstacleTimer++;
         }
@@ -251,3 +253,4 @@
     </script>
 </body>
 </html>
+
