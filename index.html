@@ -12,14 +12,17 @@
         #nitro { position: absolute; top: 10px; right: 10px; font-size: 20px; }
         #shop { position: absolute; top: 50px; left: 10px; font-size: 20px; cursor: pointer; }
         #score { position: absolute; top: 90px; left: 10px; font-size: 20px; }
+        #commandBar { position: absolute; bottom: 10px; left: 10px; width: 300px; font-size: 20px; }
     </style>
 </head>
 <body>
-    <div id="health">Health: 420</div>
+    <div id="health">Health: 100</div>
     <div id="coins">Coins: 0</div>
     <div id="nitro">Nitro: Inactive</div>
     <div id="shop">Press 'S' to open shop</div>
     <div id="score">Score: 0</div>
+    <input type="text" id="commandBar" placeholder="Type command here...">
+
     <canvas id="gameCanvas"></canvas>
 
     <script>
@@ -43,11 +46,11 @@
         let coinTimer = 0;
         let shopOpen = false;
         let score = 0;
-        let nextObstacleDistance = Math.random() * 200 + 300; // Random initial distance
+        let nextObstacleDistance = Math.random() * 300 + 500; // Increased distance between obstacles
 
         function drawPlayer() {
             let img = new Image();
-            img.src = 'perry.jpg'; // Placeholder image URL
+            img.src = 'perr.jpg'; // Placeholder image URL
             ctx.drawImage(img, player.x, player.y, player.width, player.height);
         }
 
@@ -105,7 +108,7 @@
                         if (player.health <= 0) {
                             player.health = 0;
                             player.y = canvas.height - groundHeight - 50;
-                            player.health = 420; // Respawn with full health
+                            player.health = 100; // Respawn with full health
                         }
                         document.getElementById('health').innerText = 'Health: ' + Math.round(player.health);
                     }
@@ -143,7 +146,7 @@
             if (obstacleTimer > nextObstacleDistance / speed) { // Variable distance based on speed
                 obstacles.push({ x: canvas.width, y: canvas.height - groundHeight - 50, width: 50, height: 50 });
                 obstacleTimer = 0;
-                nextObstacleDistance = Math.random() * 200 + 300; // Randomize next obstacle distance
+                nextObstacleDistance = Math.random() * 300 + 500; // Increased distance between obstacles
             }
             obstacleTimer++;
         }
@@ -188,6 +191,15 @@
             }
         }
 
+        function executeCommand(command) {
+            if (command === '/buyglider') {
+                player.hasGlider = true;
+                alert('You got the glider for free! Press Spacebar or Up Arrow to fly.');
+            } else {
+                alert('Unknown command: ' + command);
+            }
+        }
+
         function gameLoop() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             drawGround();
@@ -225,6 +237,15 @@
             }
             if (e.code === 'KeyS') {
                 openShop();
+            }
+        });
+
+        // Command Bar
+        document.getElementById('commandBar').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                const command = e.target.value.trim();
+                executeCommand(command);
+                e.target.value = ''; // Clear the command bar after executing the command
             }
         });
 
