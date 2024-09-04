@@ -3,274 +3,295 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Platypus Runner</title>
+    <title>Healing Block Game with Leaderboard & Admin Commands</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #f0f0f0; }
-        canvas { display: block; background: #87CEEB; }
-        #health { position: absolute; top: 10px; left: 10px; font-size: 20px; }
-        #coins { position: absolute; top: 10px; left: 150px; font-size: 20px; }
-        #nitro { position: absolute; top: 10px; right: 10px; font-size: 20px; }
-        #shop { position: absolute; top: 50px; left: 10px; font-size: 20px; cursor: pointer; }
-        #score { position: absolute; top: 90px; left: 10px; font-size: 20px; }
-        #commandBar { position: absolute; bottom: 10px; left: 10px; width: 300px; font-size: 20px; }
+        body {
+            margin: 0;
+            overflow: hidden;
+        }
+        canvas {
+            background: #87CEEB;
+            display: block;
+        }
+        #gameContainer {
+            position: relative;
+            width: 100%;
+            height: 100vh;
+            overflow: hidden;
+        }
+        #doofenshmirtz {
+            position: absolute;
+            bottom: 0;
+            width: 50px;
+            height: 100px;
+        }
+        #coin, #healingBlock {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+        }
+        #coin {
+            background-color: gold;
+        }
+        #healingBlock {
+            background-color: green;
+        }
+        #usernameInput {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            font-size: 20px;
+        }
+        #commandBar {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            width: 300px;
+            font-size: 20px;
+        }
+        #leaderboard {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 200px;
+            font-size: 18px;
+            background: white;
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+        }
     </style>
 </head>
 <body>
-    <div id="health">Health: 100</div>
-    <div id="coins">Coins: 0</div>
-    <div id="nitro">Nitro: Inactive</div>
-    <div id="shop">Press 'S' to open shop</div>
-    <div id="score">Score: 0</div>
-    <input type="text" id="commandBar" placeholder="Type command here...">
-
-    <canvas id="gameCanvas"></canvas>
-
+    <div id="gameContainer">
+        <input type="text" id="usernameInput" placeholder="Enter your username">
+        <div id="leaderboard">Leaderboard</div>
+        <input type="text" id="commandBar" placeholder="Enter command">
+        <img id="doofenshmirtz" src="doofenshmirtz.jpg" alt="Obstacle">
+        <div id="coin"></div>
+        <div id="healingBlock"></div>
+    </div>
     <script>
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
+        // Player and game state management
+        let players = {};
+        let admins = [];
+        let bannedPlayers = [];
+        let leaderboard = [];
+        const maxLeaderboardSize = 10;
 
-        const gravity = 9.8;
-        const groundHeight = 100; // Height of the ground
-        let player = { x: 50, y: canvas.height - groundHeight - 50, width: 50, height: 50, dy: 0, jumping: false, sliding: false, health: 100, coins: 0, hasGlider: false };
-        let obstacles = [];
-        let coins = [];
-        let nitroAvailable = false;
-        let nitroActive = false;
-        let speed = 5;
-        let nitroTimer = 0;
-        let nitroCooldown = 120000; // 2 minutes
-        let nitroDuration = 20000; // 20 seconds
-        let obstacleTimer = 0;
-        let coinTimer = 0;
-        let shopOpen = false;
-        let score = 0;
-        let nextObstacleDistance = Math.random() * 300 + 500; // Increased distance between obstacles
+        const gameContainer = document.getElementById('gameContainer');
+        const doofenshmirtz = document.getElementById('doofenshmirtz');
+        const coin = document.getElementById('coin');
+        const healingBlock = document.getElementById('healingBlock');
+        const usernameInput = document.getElementById('usernameInput');
+        const commandBar = document.getElementById('commandBar');
+        const leaderboardDiv = document.getElementById('leaderboard');
 
-        function drawPlayer() {
-            let img = new Image();
-            img.src = 'perry.jpg'; // Placeholder image URL
-            ctx.drawImage(img, player.x, player.y, player.width, player.height);
-        }
+        let player = {
+            username: '',
+            serialNumber: 0,
+            x: 50,
+            y: gameContainer.offsetHeight - 150,
+            width: 50,
+            height: 50,
+            health: 100,
+            maxHealth: 100,
+            score: 0
+        };
 
-        function drawGround() {
-            ctx.fillStyle = '#654321';
-            ctx.fillRect(0, canvas.height - groundHeight, canvas.width, groundHeight);
-        }
+        let gameRunning = false;
 
-        function drawObstacles() {
-            ctx.fillStyle = 'red';
-            obstacles.forEach(obstacle => {
-                obstacle.x -= speed;
-                ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
-            });
-            obstacles = obstacles.filter(obstacle => obstacle.x + obstacle.width > 0);
-        }
-
-        function drawCoins() {
-            ctx.fillStyle = 'yellow';
-            coins.forEach(coin => {
-                coin.x -= speed;
-                ctx.beginPath();
-                ctx.arc(coin.x, coin.y, coin.radius, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.closePath();
-            });
-            coins = coins.filter(coin => coin.x + coin.radius > 0);
-        }
-
-        function applyGravity() {
-            if (!player.hasGlider && (player.jumping || player.sliding)) {
-                player.dy += gravity * 0.1;
-                player.y += player.dy;
-                if (player.y + player.height >= canvas.height - groundHeight && !player.sliding) {
-                    player.y = canvas.height - groundHeight - 50;
-                    player.dy = 0;
-                    player.jumping = false;
-                }
-                if (player.y + player.height >= canvas.height - groundHeight + 50 && player.sliding) {
-                    player.y = canvas.height - groundHeight;
-                    player.dy = 0;
-                    player.sliding = false;
-                }
+        // Leaderboard management
+        function updateLeaderboard() {
+            leaderboard.sort((a, b) => b.score - a.score);
+            if (leaderboard.length > maxLeaderboardSize) {
+                leaderboard = leaderboard.slice(0, maxLeaderboardSize);
             }
+            renderLeaderboard();
         }
 
-        function handleCollisions() {
-            obstacles.forEach(obstacle => {
-                if (player.x < obstacle.x + obstacle.width &&
-                    player.x + player.width > obstacle.x &&
-                    player.y < obstacle.y + obstacle.height &&
-                    player.y + player.height > obstacle.y) {
-                    if (!nitroActive) {
-                        player.health -= player.health * 0.1;
-                        if (player.health <= 0) {
-                            player.health = 0;
-                            player.y = canvas.height - groundHeight - 50;
-                            player.health = 100; // Respawn with full health
-                        }
-                        document.getElementById('health').innerText = 'Health: ' + Math.round(player.health);
-                    }
-                    obstacle.x = -obstacle.width;
-                }
-            });
-
-            coins.forEach(coin => {
-                if (player.x < coin.x + coin.radius &&
-                    player.x + player.width > coin.x - coin.radius &&
-                    player.y < coin.y + coin.radius &&
-                    player.y + player.height > coin.y - coin.radius) {
-                    player.coins += 1;
-                    document.getElementById('coins').innerText = 'Coins: ' + player.coins;
-                    coin.x = -coin.radius;
-                    updateScore(1000); // Increase score by 10 for each coin
-                    saveCoins(); // Save coins to localStorage
-                }
-            });
+        function renderLeaderboard() {
+            leaderboardDiv.innerHTML = `<h3>Leaderboard</h3>${leaderboard.map(p => `<div>${p.username} - ${p.score}</div>`).join('')}`;
         }
 
-        function activateNitro() {
-            nitroActive = true;
-            speed *= 6; // 600% speed increase
-            document.getElementById('nitro').innerText = 'Nitro: Active';
-            setTimeout(() => {
-                nitroActive = false;
-                speed /= 6;
-                document.getElementById('nitro').innerText = 'Nitro: Inactive';
-                nitroTimer = 0; // Reset the nitro timer
-            }, nitroDuration);
+        function addScoreToLeaderboard(player) {
+            leaderboard.push({ username: player.username, score: player.score });
+            updateLeaderboard();
         }
 
-        function generateObstacles() {
-            if (obstacleTimer > nextObstacleDistance / speed) { // Variable distance based on speed
-                obstacles.push({ x: canvas.width, y: canvas.height - groundHeight - 50, width: 50, height: 50 });
-                obstacleTimer = 0;
-                nextObstacleDistance = Math.random() * 300 + 500; // Increased distance between obstacles
-            }
-            obstacleTimer++;
-        }
-
-        function generateCoins() {
-            if (coinTimer > 100) { // Every 100 frames
-                coins.push({ x: canvas.width, y: Math.random() * (canvas.height - groundHeight - 100), radius: 15 });
-                coinTimer = 0;
-            }
-            coinTimer++;
-        }
-
-        function openShop() {
-            if (player.coins >= 10) {
-                const buyGlider = confirm("Do you want to buy the glider for 10 coins?");
-                if (buyGlider) {
-                    player.coins -= 10;
-                    player.hasGlider = true;
-                    document.getElementById('coins').innerText = 'Coins: ' + player.coins;
-                    alert("You have purchased the glider! Press Spacebar or Up Arrow to fly.");
-                    saveCoins(); // Save updated coins to localStorage
-                }
-            } else {
-                alert("You don't have enough coins to buy the glider.");
-            }
-        }
-
-        function updateScore(points) {
-            score += points;
-            document.getElementById('score').innerText = 'Score: ' + score;
-        }
-
-        function saveCoins() {
-            localStorage.setItem('coins', player.coins);
-        }
-
-        function loadCoins() {
-            const savedCoins = localStorage.getItem('coins');
-            if (savedCoins !== null) {
-                player.coins = parseInt(savedCoins, 10);
-                document.getElementById('coins').innerText = 'Coins: ' + player.coins;
-            }
-        }
-
-        function executeCommand(command) {
-            if (command === '/buyglider') {
-                player.hasGlider = true;
-                alert('You got the glider for free! Press Spacebar or Up Arrow to fly.');
-            } else {
-                alert('Unknown command: ' + command);
-            }
-        }
-
-        function gameLoop() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            drawGround();
-            drawPlayer();
-            drawObstacles();
-            drawCoins();
-            applyGravity();
-            handleCollisions();
-            generateObstacles();
-            if (nitroTimer > nitroCooldown) nitroAvailable = true;
-            generateCoins();
-            nitroTimer += 16.67;
-            requestAnimationFrame(gameLoop);
-        }
-
-        loadCoins(); // Load coins from previous sessions
-        gameLoop();
-
-        window.addEventListener('keydown', (e) => {
-            if (e.code === 'ShiftLeft' && nitroAvailable) {
-                activateNitro();
-                nitroAvailable = false;
-            }
-            if ((e.code === 'Space' || e.code === 'ArrowUp') && !player.jumping && !player.sliding) {
-                if (player.hasGlider) {
-                    player.dy = -10; // Glider controls for flying
-                } else {
-                    player.dy = -20;
-                }
-                player.jumping = true;
-            }
-            if (e.code === 'ArrowDown' && !player.jumping) {
-                player.y = canvas.height - groundHeight;
-                player.sliding = true;
-            }
-            if (e.code === 'KeyS') {
-                openShop();
-            }
-        });
-
-        // Command Bar
-        document.getElementById('commandBar').addEventListener('keydown', (e) => {
+        // Command handling
+        commandBar.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
-                const command = e.target.value.trim();
-                executeCommand(command);
-                e.target.value = ''; // Clear the command bar after executing the command
+                const command = commandBar.value.trim();
+                handleCommand(command);
+                commandBar.value = '';
             }
         });
 
-        // Mobile Controls
-        canvas.addEventListener('touchstart', (e) => {
-            const touchX = e.touches[0].clientX;
-            const touchY = e.touches[0].clientY;
+        function handleCommand(command) {
+            if (!player.username) return;
 
-            if (touchX < canvas.width / 2 && !player.jumping && !player.sliding) {
-                if (player.hasGlider) {
-                    player.dy = -10; // Glider controls for flying
+            const [cmd, ...args] = command.split('"');
+            if (cmd === '/admin') {
+                const username = args[1];
+                if (!bannedPlayers.includes(username)) {
+                    admins.push(username);
+                    alert(`${username} is now an admin.`);
                 } else {
-                    player.dy = -20;
+                    alert(`${username} is banned and cannot be made an admin.`);
                 }
-                player.jumping = true;
-            } else if (touchX > canvas.width / 2 && !player.jumping) {
-                player.y = canvas.height - groundHeight;
-                player.sliding = true;
+            } else if (cmd === '/ban') {
+                const username = args[1];
+                if (admins.includes(player.username)) {
+                    bannedPlayers.push(username);
+                    alert(`${username} has been banned.`);
+                } else {
+                    alert('Only admins can ban players.');
+                }
+            } else if (cmd === '/give') {
+                const item = args[1];
+                const username = args[3];
+                if (admins.includes(player.username)) {
+                    giveItem(item, username);
+                } else {
+                    alert('Only admins can give items.');
+                }
+            }
+        }
+
+        function giveItem(item, username) {
+            const recipient = players[username];
+            if (recipient) {
+                if (item === 'heal') {
+                    recipient.health = Math.min(recipient.maxHealth, recipient.health + 100);
+                    alert(`${username} has been healed by 100%. Current health: ${recipient.health}%`);
+                } else if (item === 'extraLife') {
+                    recipient.lives = (recipient.lives || 1) + 1;
+                    alert(`${username} has been given an extra life.`);
+                }
+                // Add more items as needed
+            } else {
+                alert(`${username} not found.`);
+            }
+        }
+
+        // Username handling
+        usernameInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                const inputUsername = usernameInput.value.trim();
+                if (inputUsername && !bannedPlayers.includes(inputUsername)) {
+                    if (players[inputUsername]) {
+                        player.username = `${inputUsername}_${Object.keys(players).filter(u => u.startsWith(inputUsername)).length + 1}`;
+                    } else {
+                        player.username = inputUsername;
+                    }
+                    players[player.username] = player;
+                    gameRunning = true;
+                    usernameInput.style.display = 'none';
+                    startGame();
+                } else if (bannedPlayers.includes(inputUsername)) {
+                    alert("You are banned from this game.");
+                } else {
+                    alert("Please enter a valid username.");
+                }
             }
         });
 
-        window.addEventListener('resize', () => {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-        });
+        // Game logic
+        function startGame() {
+            placeCoin();
+            generateHealingBlock();
+            moveElements();
+        }
+
+        function placeCoin() {
+            const coinHeight = Math.random() * (gameContainer.offsetHeight - 100);
+            coin.style.top = `${coinHeight}px`;
+            coin.style.left = `${gameContainer.offsetWidth - 60}px`;
+        }
+
+        function generateHealingBlock() {
+            const randomChance = Math.random() * 100;
+            if (randomChance < 1) {
+                healingBlock.style.display = 'block';
+                healingBlock.style.top = `${Math.random() * (gameContainer.offsetHeight - 50)}px`;
+                healingBlock.style.left = `${gameContainer.offsetWidth - 60}px`;
+            } else {
+                healingBlock.style.display = 'none';
+            }
+        }
+
+        function healPlayer() {
+            const randomHealingChance = Math.random();
+            let healAmount = 50; // Minimum heal
+            if (randomHealingChance > 0.8) {
+                healAmount = 100; // 20% chance
+            } else if (randomHealingChance > 0.5) {
+                healAmount = 200; // 30% chance
+            } else if (randomHealingChance > 0.2) {
+                healAmount = 300; // 30% chance
+            } else if (randomHealingChance > 0.05) {
+                healAmount = 400; // 15% chance
+            } else {
+                healAmount = 500; // 5% chance
+            }
+            player.health = Math.min(player.maxHealth, player.health + healAmount);
+            alert(`Healed by ${healAmount}%. Current health: ${player.health}%`);
+        }
+
+        function moveElements() {
+            if (!gameRunning) return;
+
+            // Move doofenshmirtz obstacle
+            let doofenshmirtzPos = parseInt(doofenshmirtz.style.left) || gameContainer.offsetWidth;
+            doofenshmirtzPos -= 5;
+            doofenshmirtz.style.left = `${doofenshmirtzPos}px`;
+
+            // Move coin
+            let coinPos = parseInt(coin.style.left) || gameContainer.offsetWidth;
+            coinPos -= 5;
+            coin.style.left = `${coinPos}px`;
+
+            // Move healing block if visible
+            if (healingBlock.style.display === 'block') {
+                let healingBlockPos = parseInt(healingBlock.style.left) || gameContainer.offsetWidth;
+                healingBlockPos -= 5;
+                healingBlock.style.left = `${healingBlockPos}px`;
+            }
+
+            // Check for collisions
+            if (doofenshmirtzPos < player.x + player.width && doofenshmirtzPos + 50 > player.x) {
+                alert("You hit Doofenshmirtz!");
+                gameRunning = false;
+                addScoreToLeaderboard(player);
+                resetGame();
+            }
+
+            if (coinPos < player.x + player.width && coinPos + 30 > player.x) {
+                alert("You collected a coin!");
+                player.score += 10;
+                placeCoin();
+            }
+
+            if (healingBlock.style.display === 'block' && parseInt(healingBlock.style.left) < player.x + player.width &&
+                parseInt(healingBlock.style.left) + 30 > player.x) {
+                healPlayer();
+                healingBlock.style.display = 'none';
+            }
+
+            requestAnimationFrame(moveElements);
+        }
+
+        function resetGame() {
+            player.health = 100;
+            player.score = 0;
+            gameRunning = false;
+            usernameInput.style.display = 'block';
+            usernameInput.value = '';
+        }
+
+        // Generate a new healing block every 5 seconds
+        setInterval(generateHealingBlock, 5000);
     </script>
 </body>
 </html>
