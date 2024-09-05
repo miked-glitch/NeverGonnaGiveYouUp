@@ -40,7 +40,7 @@
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
 
-        const gravity = 20; // Increased gravity for Chrome Dino effect
+        const gravity = 12; // Decreased gravity for more control
         const groundHeight = 100;
         let player = { x: 50, y: canvas.height - groundHeight - 50, width: 50, height: 50, dy: 0, jumping: false, sliding: false, health: 100, coins: 0, hasGlider: false };
         let obstacles = [];
@@ -55,14 +55,14 @@
         let coinTimer = 0;
         let shopOpen = false;
         let score = 0;
-        let nextObstacleDistance = Math.random() * 300 + 500;
+        let nextObstacleDistance = Math.random() * 300 + 300; // Randomized obstacle distance
         let username = '';
         let admins = JSON.parse(localStorage.getItem('admins')) || [];
         let leaderboard = JSON.parse(localStorage.getItem('leaderboard')) || [];
         
         function drawPlayer() {
             let img = new Image();
-            img.src = 'perry.jpg';
+            img.src = 'perry.jpg'; // Replace with your player's image path
             ctx.drawImage(img, player.x, player.y, player.width, player.height);
         }
 
@@ -73,7 +73,7 @@
 
         function drawObstacles() {
             let img = new Image();
-            img.src = 'Doofenshmirtz.jpg';
+            img.src = 'doofenshmirtz.jpg'; // Replace with your obstacle image path
             obstacles.forEach(obstacle => {
                 obstacle.x -= speed;
                 ctx.drawImage(img, obstacle.x, obstacle.y, obstacle.width, obstacle.height);
@@ -117,11 +117,11 @@
                     player.y < obstacle.y + obstacle.height &&
                     player.y + player.height > obstacle.y) {
                     if (!nitroActive) {
-                        player.health -= player.health * 0.1;
+                        player.health -= 20; // Health reduces by 20 units
                         if (player.health <= 0) {
                             player.health = 0;
                             player.y = canvas.height - groundHeight - 50;
-                            player.health = 100;
+                            player.health = 100; // Respawn with full health
                         }
                         document.getElementById('health').innerText = 'Health: ' + Math.round(player.health);
                     }
@@ -160,7 +160,7 @@
                 let randomHeight = canvas.height - groundHeight - Math.random() * 50 - 50;
                 obstacles.push({ x: canvas.width, y: randomHeight, width: 50, height: 50 });
                 obstacleTimer = 0;
-                nextObstacleDistance = Math.random() * 300 + 500;
+                nextObstacleDistance = Math.random() * 300 + 500; // Random obstacle distance
             }
             obstacleTimer++;
         }
@@ -253,8 +253,18 @@
             if (duplicateCount > 0) {
                 username += duplicateCount; // Add serial number if there's a duplicate
             }
+            localStorage.setItem('username', username); // Save the username
             startGame();
         });
+
+        // Load saved username if available
+        window.onload = () => {
+            const savedUsername = localStorage.getItem('username');
+            if (savedUsername) {
+                username = savedUsername;
+                startGame();
+            }
+        };
 
         document.getElementById('commandBar').addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
@@ -283,7 +293,12 @@
             }
         });
 
+        // Shift to activate nitro
         window.addEventListener('keydown', (e) => {
+            if (e.code === 'ShiftLeft' && nitroAvailable) {
+                activateNitro();
+                nitroAvailable = false;
+            }
             if (e.code === 'Space' && !player.jumping) {
                 if (player.hasGlider) {
                     player.dy = -10; // Glider controls for flying
@@ -296,3 +311,4 @@
     </script>
 </body>
 </html>
+
