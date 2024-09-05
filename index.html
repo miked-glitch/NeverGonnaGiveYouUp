@@ -111,7 +111,19 @@
             score: 0
         };
 
-        let gameRunning = false;
+        let gameRunning = false; 
+        };
+
+        // Load player image
+        const playerImage = new Image();
+        playerImage.src = 'perry.jpg'; // Set the source to your image file
+
+        // Function to draw the player image
+        function drawPlayer() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear previous frame
+            ctx.drawImage(playerImage, player.x, player.y, player.width, player.height); // Draw the player image
+        }
+
 
         // Load the username from localStorage if it exists
         window.onload = () => {
