@@ -60,6 +60,7 @@
         let admins = JSON.parse(localStorage.getItem('admins')) || [];
         let leaderboard = JSON.parse(localStorage.getItem('leaderboard')) || [];
         
+        // Helper functions for drawing, obstacles, and coins
         function drawPlayer() {
             let img = new Image();
             img.src = 'perry.jpg'; // Replace with your player's image path
@@ -73,7 +74,7 @@
 
         function drawObstacles() {
             let img = new Image();
-            img.src = 'Doofenshmirtz.jpg'; // Replace with your obstacle image path
+            img.src = 'doofenshmirtz.jpg'; // Replace with your obstacle image path
             obstacles.forEach(obstacle => {
                 obstacle.x -= speed;
                 ctx.drawImage(img, obstacle.x, obstacle.y, obstacle.width, obstacle.height);
@@ -120,8 +121,8 @@
                         player.health -= 20; // Health reduces by 20 units
                         if (player.health <= 0) {
                             player.health = 0;
-                            player.y = canvas.height - groundHeight - 50;
-                            player.health = 100; // Respawn with full health
+                            document.getElementById('health').innerText = 'Health: 0';
+                            setTimeout(restartGame, 2000); // Restart after 2 seconds when health reaches 0
                         }
                         document.getElementById('health').innerText = 'Health: ' + Math.round(player.health);
                     }
@@ -223,6 +224,33 @@
             }
         }
 
+        function restartGame() {
+            // Save the score to the leaderboard before restarting
+            leaderboard.push({ username: username, score: score });
+            leaderboard.sort((a, b) => b.score - a.score);
+            if (leaderboard.length > 10) leaderboard = leaderboard.slice(0, 10); // Keep only the top 10
+            saveLeaderboard();
+
+            // Reset player stats
+            player.health = 100;
+            player.coins = 0;
+            score = 0;
+
+            document.getElementById('health').innerText = 'Health: 100';
+            document.getElementById('coins').innerText = 'Coins: 0';
+            document.getElementById('score').innerText = 'Score: 0';
+
+            // Reset game state
+            obstacles = [];
+            coins = [];
+            nitroAvailable = false;
+            nitroActive = false;
+            speed = 5;
+
+            // Restart game loop
+            gameLoop();
+        }
+
         function gameLoop() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             drawGround();
@@ -311,4 +339,3 @@
     </script>
 </body>
 </html>
-
