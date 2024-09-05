@@ -3,327 +3,100 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Healing Block Game with Leaderboard & Admin Commands</title>
+    <title>Game with Obstacles and Player</title>
     <style>
         body {
             margin: 0;
             overflow: hidden;
-            background-color: #87CEEB;
-            font-family: Arial, sans-serif;
         }
-        #gameContainer {
-            position: relative;
-            width: 100%;
-            height: 100vh;
-            overflow: hidden;
-            background-color: #87CEEB;
-        }
-        #doofenshmirtz {
-            position: absolute;
-            bottom: 0;
-            width: 50px;
-            height: 100px;
-        }
-        #coin, #healingBlock {
-            position: absolute;
-            width: 30px;
-            height: 30px;
-        }
-        #coin {
-            background-color: gold;
-            border-radius: 50%;
-        }
-        #healingBlock {
-            background-color: green;
-            border-radius: 5px;
-        }
-        #usernameInput {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            font-size: 20px;
-            padding: 5px;
-            border: 2px solid #333;
-            border-radius: 5px;
-            background: #fff;
-            z-index: 10;
-        }
-        #commandBar {
-            position: absolute;
-            bottom: 20px;
-            left: 20px;
-            width: 300px;
-            font-size: 20px;
-            padding: 5px;
-            border: 2px solid #333;
-            border-radius: 5px;
-            background: #fff;
-            z-index: 10;
-        }
-        #leaderboard {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            width: 200px;
-            font-size: 18px;
-            background: white;
-            padding: 10px;
-            border-radius: 5px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
-            z-index: 10;
+        #gameCanvas {
+            background-color: #87CEEB; /* Sky-blue background */
+            display: block;
         }
     </style>
 </head>
 <body>
-    <div id="gameContainer">
-        <input type="text" id="usernameInput" placeholder="Enter your username">
-        <div id="leaderboard">Leaderboard</div>
-        <input type="text" id="commandBar" placeholder="Enter command">
-        <img id="doofenshmirtz" src="doofenshmirtz.jpg" alt="Obstacle">
-        <div id="coin"></div>
-        <div id="healingBlock"></div>
-    </div>
+    <canvas id="gameCanvas"></canvas>
+
     <script>
-        // Player and game state management
-        let players = {};
-        let admins = [];
-        let bannedPlayers = [];
-        let leaderboard = [];
-        const maxLeaderboardSize = 10;
+        // Get canvas and context
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Set canvas size
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
 
-        const gameContainer = document.getElementById('gameContainer');
-        const doofenshmirtz = document.getElementById('doofenshmirtz');
-        const coin = document.getElementById('coin');
-        const healingBlock = document.getElementById('healingBlock');
-        const usernameInput = document.getElementById('usernameInput');
-        const commandBar = document.getElementById('commandBar');
-        const leaderboardDiv = document.getElementById('leaderboard');
-
-        let player = {
-            username: '',
-            serialNumber: 0,
-            x: 50,
-            y: gameContainer.offsetHeight - 150,
-            width: 50,
-            height: 50,
-            health: 100,
-            maxHealth: 100,
-            score: 0
-        };
-
-        let gameRunning = false; 
+        // Player object
+        const player = {
+            x: 50,                // X position
+            y: canvas.height - 150, // Y position (near bottom)
+            width: 50,            // Player width
+            height: 50,           // Player height
+            speed: 5              // Player movement speed
         };
 
         // Load player image
         const playerImage = new Image();
-        playerImage.src = 'perry.jpg';
+        playerImage.src = 'perry.jpg'; // Set the source to your player image
+
+        // Obstacle object
+        const obstacle = {
+            x: canvas.width - 100, // X position (starts off-screen)
+            y: canvas.height - 150, // Y position (same height as player)
+            width: 50,             // Obstacle width
+            height: 100,           // Obstacle height
+            speed: 3               // Obstacle movement speed
+        };
+
+        // Load obstacle image
+        const obstacleImage = new Image();
+        obstacleImage.src = 'obstacle.jpg'; // Set the source to your obstacle image
 
         // Function to draw the player image
         function drawPlayer() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear previous frame
-            ctx.drawImage(playerImage, player.x, player.y, player.width, player.height); // Draw the player image
+            ctx.drawImage(playerImage, player.x, player.y, player.width, player.height); // Draw player
         }
 
+        // Function to draw obstacles
+        function drawObstacle() {
+            ctx.drawImage(obstacleImage, obstacle.x, obstacle.y, obstacle.width, obstacle.height); // Draw obstacle
+        }
 
-        // Load the username from localStorage if it exists
-        window.onload = () => {
-            const savedUsername = localStorage.getItem('username');
-            if (savedUsername) {
-                player.username = savedUsername;
-                usernameInput.style.display = 'none';
-                startGame();
+        // Function to update game elements (player and obstacles)
+        function updateGame() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear the canvas
+
+            // Update obstacle position (move left)
+            obstacle.x -= obstacle.speed;
+            if (obstacle.x + obstacle.width < 0) {
+                obstacle.x = canvas.width; // Reset obstacle to the right if it goes off-screen
             }
+
+            // Draw player and obstacle
+            drawPlayer();
+            drawObstacle();
+
+            requestAnimationFrame(updateGame); // Loop the game
+        }
+
+        // Event listener for player movement (using arrow keys)
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight' || e.key === 'd') {
+                player.x += player.speed; // Move right
+            } else if (e.key === 'ArrowLeft' || e.key === 'a') {
+                player.x -= player.speed; // Move left
+            } else if (e.key === 'ArrowUp' || e.key === 'w') {
+                player.y -= player.speed; // Move up
+            } else if (e.key === 'ArrowDown' || e.key === 's') {
+                player.y += player.speed; // Move down
+            }
+        });
+
+        // Start the game once both images are loaded
+        playerImage.onload = obstacleImage.onload = function() {
+            updateGame();
         };
-
-        // Save the username to localStorage
-        function saveUsername(username) {
-            localStorage.setItem('username', username);
-        }
-
-        // Leaderboard management
-        function updateLeaderboard() {
-            leaderboard.sort((a, b) => b.score - a.score);
-            if (leaderboard.length > maxLeaderboardSize) {
-                leaderboard = leaderboard.slice(0, maxLeaderboardSize);
-            }
-            renderLeaderboard();
-        }
-
-        function renderLeaderboard() {
-            leaderboardDiv.innerHTML = `<h3>Leaderboard</h3>${leaderboard.map(p => `<div>${p.username} - ${p.score}</div>`).join('')}`;
-        }
-
-        function addScoreToLeaderboard(player) {
-            leaderboard.push({ username: player.username, score: player.score });
-            updateLeaderboard();
-        }
-
-        // Command handling
-        commandBar.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                const command = commandBar.value.trim();
-                handleCommand(command);
-                commandBar.value = '';
-            }
-        });
-
-        function handleCommand(command) {
-            if (!player.username) return;
-
-            const [cmd, ...args] = command.split('"');
-            if (cmd === '/admin') {
-                const username = args[1];
-                if (!bannedPlayers.includes(username)) {
-                    admins.push(username);
-                    alert(`${username} is now an admin.`);
-                } else {
-                    alert(`${username} is banned and cannot be made an admin.`);
-                }
-            } else if (cmd === '/ban') {
-                const username = args[1];
-                if (admins.includes(player.username)) {
-                    bannedPlayers.push(username);
-                } else {
-                    alert('Only admins can ban players.');
-                }
-            } else if (cmd === '/give') {
-                const item = args[1];
-                const username = args[3];
-                if (admins.includes(player.username)) {
-                    giveItem(item, username);
-                } else {
-                    alert('Only admins can give items.');
-                }
-            }
-        }
-
-        function giveItem(item, username) {
-            const recipient = players[username];
-            if (recipient) {
-                if (item === 'heal') {
-                    recipient.health = Math.min(recipient.maxHealth, recipient.health + 100);
-                } else if (item === 'extraLife') {
-                    recipient.lives = (recipient.lives || 1) + 1;
-                }
-                // Add more items as needed
-            }
-        }
-
-        // Username handling
-        usernameInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                const inputUsername = usernameInput.value.trim();
-                if (inputUsername && !bannedPlayers.includes(inputUsername)) {
-                    if (players[inputUsername]) {
-                        player.username = `${inputUsername}_${Object.keys(players).filter(u => u.startsWith(inputUsername)).length + 1}`;
-                    } else {
-                        player.username = inputUsername;
-                    }
-                    players[player.username] = player;
-                    saveUsername(player.username);
-                    gameRunning = true;
-                    usernameInput.style.display = 'none';
-                    startGame();
-                } else if (bannedPlayers.includes(inputUsername)) {
-                    alert("You are banned from this game.");
-                }
-            }
-        });
-
-        // Game logic
-        function startGame() {
-            placeCoin();
-            generateHealingBlock();
-            moveElements();
-        }
-
-        function placeCoin() {
-            const coinHeight = Math.random() * (gameContainer.offsetHeight - 100);
-            coin.style.top = `${coinHeight}px`;
-            coin.style.left = `${gameContainer.offsetWidth - 60}px`;
-        }
-
-        function generateHealingBlock() {
-            const randomChance = Math.random() * 100;
-            if (randomChance < 1) {
-                healingBlock.style.display = 'block';
-                healingBlock.style.top = `${Math.random() * (gameContainer.offsetHeight - 50)}px`;
-                healingBlock.style.left = `${gameContainer.offsetWidth - 60}px`;
-            } else {
-                healingBlock.style.display = 'none';
-            }
-        }
-
-        function healPlayer() {
-            const randomHealingChance = Math.random();
-            let healAmount = 50; // Minimum heal
-            if (randomHealingChance > 0.8) {
-                healAmount = 100; // 20% chance
-            } else if (randomHealingChance > 0.5) {
-                healAmount = 200; // 30% chance
-            } else if (randomHealingChance > 0.2) {
-                healAmount = 300; // 30% chance
-            } else if (randomHealingChance > 0.05) {
-                healAmount = 400; // 15% chance
-            } else {
-                healAmount = 500; // 5% chance
-            }
-            player.health = Math.min(player.maxHealth, player.health + healAmount);
-        }
-
-        function moveElements() {
-            if (!gameRunning) return;
-
-            // Move doofenshmirtz obstacle
-            let doofenshmirtzPos = parseInt(doofenshmirtz.style.left) || gameContainer.offsetWidth;
-            doofenshmirtzPos -= 5;
-            doofenshmirtz.style.left = `${doofenshmirtzPos}px`;
-
-            // Move coin
-            let coinPos = parseInt(coin.style.left) || gameContainer.offsetWidth;
-            coinPos -= 5;
-            coin.style.left = `${coinPos}px`;
-
-            // Move healing block if visible
-            if (healingBlock.style.display === 'block') {
-                let healingBlockPos = parseInt(healingBlock.style.left) || gameContainer.offsetWidth;
-                healingBlockPos -= 5;
-                healingBlock.style.left = `${healingBlockPos}px`;
-            }
-
-            // Check for collisions with Doofenshmirtz (obstacle)
-            if (doofenshmirtzPos < player.x + player.width && doofenshmirtzPos + 50 > player.x) {
-                gameRunning = false;
-                addScoreToLeaderboard(player);
-                resetGame();
-            }
-
-            // Check for collisions with coins
-            if (coinPos < player.x + player.width && coinPos + 30 > player.x) {
-                player.score += 10; // Increase score when a coin is collected
-                placeCoin(); // Place a new coin
-            }
-
-            // Check for healing block collision
-            if (healingBlock.style.display === 'block' && parseInt(healingBlock.style.left) < player.x + player.width &&
-                parseInt(healingBlock.style.left) + 30 > player.x) {
-                healPlayer();
-                healingBlock.style.display = 'none';
-            }
-
-            requestAnimationFrame(moveElements);
-        }
-
-        function resetGame() {
-            player.health = 100;
-            player.score = 0;
-            gameRunning = false;
-            usernameInput.style.display = 'block';
-            usernameInput.value = '';
-        }
-
-        // Generate a new healing block every 5 seconds
-        setInterval(generateHealingBlock, 5000);
     </script>
 </body>
 </html>
