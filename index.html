@@ -3,21 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Platypus run</title>
+    <title>Healing Block Game with Leaderboard & Admin Commands</title>
     <style>
         body {
             margin: 0;
             overflow: hidden;
-        }
-        canvas {
-            background: #87CEEB;
-            display: block;
+            background-color: #87CEEB;
+            font-family: Arial, sans-serif;
         }
         #gameContainer {
             position: relative;
             width: 100%;
             height: 100vh;
             overflow: hidden;
+            background-color: #87CEEB;
         }
         #doofenshmirtz {
             position: absolute;
@@ -32,15 +31,22 @@
         }
         #coin {
             background-color: gold;
+            border-radius: 50%;
         }
         #healingBlock {
             background-color: green;
+            border-radius: 5px;
         }
         #usernameInput {
             position: absolute;
             top: 20px;
             left: 20px;
             font-size: 20px;
+            padding: 5px;
+            border: 2px solid #333;
+            border-radius: 5px;
+            background: #fff;
+            z-index: 10;
         }
         #commandBar {
             position: absolute;
@@ -48,6 +54,11 @@
             left: 20px;
             width: 300px;
             font-size: 20px;
+            padding: 5px;
+            border: 2px solid #333;
+            border-radius: 5px;
+            background: #fff;
+            z-index: 10;
         }
         #leaderboard {
             position: absolute;
@@ -59,6 +70,7 @@
             padding: 10px;
             border-radius: 5px;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+            z-index: 10;
         }
     </style>
 </head>
@@ -100,6 +112,21 @@
         };
 
         let gameRunning = false;
+
+        // Load the username from localStorage if it exists
+        window.onload = () => {
+            const savedUsername = localStorage.getItem('username');
+            if (savedUsername) {
+                player.username = savedUsername;
+                usernameInput.style.display = 'none';
+                startGame();
+            }
+        };
+
+        // Save the username to localStorage
+        function saveUsername(username) {
+            localStorage.setItem('username', username);
+        }
 
         // Leaderboard management
         function updateLeaderboard() {
@@ -144,7 +171,6 @@
                 const username = args[1];
                 if (admins.includes(player.username)) {
                     bannedPlayers.push(username);
-                    alert(`${username} has been banned.`);
                 } else {
                     alert('Only admins can ban players.');
                 }
@@ -164,14 +190,10 @@
             if (recipient) {
                 if (item === 'heal') {
                     recipient.health = Math.min(recipient.maxHealth, recipient.health + 100);
-                    alert(`${username} has been healed by 100%. Current health: ${recipient.health}%`);
                 } else if (item === 'extraLife') {
                     recipient.lives = (recipient.lives || 1) + 1;
-                    alert(`${username} has been given an extra life.`);
                 }
                 // Add more items as needed
-            } else {
-                alert(`${username} not found.`);
             }
         }
 
@@ -186,13 +208,12 @@
                         player.username = inputUsername;
                     }
                     players[player.username] = player;
+                    saveUsername(player.username);
                     gameRunning = true;
                     usernameInput.style.display = 'none';
                     startGame();
                 } else if (bannedPlayers.includes(inputUsername)) {
                     alert("You are banned from this game.");
-                } else {
-                    alert("Please enter a valid username.");
                 }
             }
         });
@@ -236,7 +257,6 @@
                 healAmount = 500; // 5% chance
             }
             player.health = Math.min(player.maxHealth, player.health + healAmount);
-            alert(`Healed by ${healAmount}%. Current health: ${player.health}%`);
         }
 
         function moveElements() {
@@ -259,20 +279,20 @@
                 healingBlock.style.left = `${healingBlockPos}px`;
             }
 
-            // Check for collisions
+            // Check for collisions with Doofenshmirtz (obstacle)
             if (doofenshmirtzPos < player.x + player.width && doofenshmirtzPos + 50 > player.x) {
-                alert("You hit Doofenshmirtz!");
                 gameRunning = false;
                 addScoreToLeaderboard(player);
                 resetGame();
             }
 
+            // Check for collisions with coins
             if (coinPos < player.x + player.width && coinPos + 30 > player.x) {
-                alert("You collected a coin!");
-                player.score += 10;
-                placeCoin();
+                player.score += 10; // Increase score when a coin is collected
+                placeCoin(); // Place a new coin
             }
 
+            // Check for healing block collision
             if (healingBlock.style.display === 'block' && parseInt(healingBlock.style.left) < player.x + player.width &&
                 parseInt(healingBlock.style.left) + 30 > player.x) {
                 healPlayer();
