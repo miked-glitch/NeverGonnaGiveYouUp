@@ -3,100 +3,550 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>r</title>
+    <title>Platypus Runner</title>
     <style>
-        body {
-            margin: 0;
-            overflow: hidden;
-        }
-        #gameCanvas {
-            background-color: #87CEEB; /* Sky-blue background */
-            display: block;
-        }
+        body { margin: 0; overflow: hidden; background: #f0f0f0; }
+        canvas { display: block; background: #87CEEB; }
+        #health { position: absolute; top: 10px; left: 10px; font-size: 20px; }
+        #coins { position: absolute; top: 10px; left: 150px; font-size: 20px; }
+        #nitro { position: absolute; top: 10px; right: 10px; font-size: 20px; }
+        #shop { position: absolute; top: 50px; left: 10px; font-size: 20px; cursor: pointer; }
+        #score { position: absolute; top: 90px; left: 10px; font-size: 20px; }
+        #commandBar { position: absolute; bottom: 10px; left: 10px; width: 300px; font-size: 20px; }
     </style>
 </head>
 <body>
+    <div id="health">Health: 100</div>
+    <div id="coins">Coins: 0</div>
+    <div id="nitro">Nitro: Inactive</div>
+    <div id="shop">Press 'S' to open shop</div>
+    <div id="score">Score: 0</div>
+    <input type="text" id="commandBar" placeholder="Type command here...">
+
     <canvas id="gameCanvas"></canvas>
 
     <script>
-        // Get canvas and context
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
-        
-        // Set canvas size
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
 
-        // Player object
-        const player = {
-            x: 50,                // X position
-            y: canvas.height - 150, // Y position (near bottom)
-            width: 50,            // Player width
-            height: 50,           // Player height
-            speed: 5              // Player movement speed
-        };
+        const gravity = 9.8;
+        const groundHeight = 100; // Height of the ground
+        let player = { x: 50, y: canvas.height - groundHeight - 50, width: 50, height: 50, dy: 0, jumping: false, sliding: false, health: 100, coins: 0, hasGlider: false };
+        let obstacles = [];
+        let coins = [];
+        let nitroAvailable = false;
+        let nitroActive = false;
+        let speed = 5;
+        let nitroTimer = 0;
+        let nitroCooldown = 120000; // 2 minutes
+        let nitroDuration = 20000; // 20 seconds
+        let obstacleTimer = 0;
+        let coinTimer = 0;
+        let shopOpen = false;
+        let score = 0;
+        let nextObstacleDistance = Math.random() * 300 + 500; // Increased distance between obstacles
 
-        // Load player image
-        const playerImage = new Image();
-        playerImage.src = 'perry.jpg'; // Set the source to your player image
-
-        // Obstacle object
-        const obstacle = {
-            x: canvas.width - 100, // X position (starts off-screen)
-            y: canvas.height - 150, // Y position (same height as player)
-            width: 50,             // Obstacle width
-            height: 100,           // Obstacle height
-            speed: 3               // Obstacle movement speed
-        };
-
-        // Load obstacle image
-        const obstacleImage = new Image();
-        obstacleImage.src = 'obstacle.jpg'; // Set the source to your obstacle image
-
-        // Function to draw the player image
         function drawPlayer() {
-            ctx.drawImage(playerImage, player.x, player.y, player.width, player.height); // Draw player
+            let img = new Image();
+            img.src = 'perry.jpg'; // Placeholder image URL
+            ctx.drawImage(img, player.x, player.y, player.width, player.height);
         }
 
-        // Function to draw obstacles
-        function drawObstacle() {
-            ctx.drawImage(obstacleImage, obstacle.x, obstacle.y, obstacle.width, obstacle.height); // Draw obstacle
+        function drawGround() {
+            ctx.fillStyle = '#654321';
+            ctx.fillRect(0, canvas.height - groundHeight, canvas.width, groundHeight);
         }
 
-        // Function to update game elements (player and obstacles)
-        function updateGame() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear the canvas
+        function drawObstacles() {
+            ctx.fillStyle = 'red';
+            obstacles.forEach(obstacle => {
+                obstacle.x -= speed;
+                ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+            });
+            obstacles = obstacles.filter(obstacle => obstacle.x + obstacle.width > 0);
+        }
 
-            // Update obstacle position (move left)
-            obstacle.x -= obstacle.speed;
-            if (obstacle.x + obstacle.width < 0) {
-                obstacle.x = canvas.width; // Reset obstacle to the right if it goes off-screen
+        function drawCoins() {
+            ctx.fillStyle = 'yellow';
+            coins.forEach(coin => {
+                coin.x -= speed;
+                ctx.beginPath();
+                ctx.arc(coin.x, coin.y, coin.radius, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.closePath();
+            });
+            coins = coins.filter(coin => coin.x + coin.radius > 0);
+        }
+
+        function applyGravity() {
+            if (!player.hasGlider && (player.jumping || player.sliding)) {
+                player.dy += gravity * 0.1;
+                player.y += player.dy;
+                if (player.y + player.height >= canvas.height - groundHeight && !player.sliding) {
+                    player.y = canvas.height - groundHeight - 50;
+                    player.dy = 0;
+                    player.jumping = false;
+                }
+                if (player.y + player.height >= canvas.height - groundHeight + 50 && player.sliding) {
+                    player.y = canvas.height - groundHeight;
+                    player.dy = 0;
+                    player.sliding = false;
+                }
             }
-
-            // Draw player and obstacle
-            drawPlayer();
-            drawObstacle();
-
-            requestAnimationFrame(updateGame); // Loop the game
         }
 
-        // Event listener for player movement (using arrow keys)
+        function handleCollisions() {
+            obstacles.forEach(obstacle => {
+                if (player.x < obstacle.x + obstacle.width &&
+                    player.x + player.width > obstacle.x &&
+                    player.y < obstacle.y + obstacle.height &&
+                    player.y + player.height > obstacle.y) {
+                    if (!nitroActive) {
+                        player.health -= player.health * 0.1;
+                        if (player.health <= 0) {
+                            player.health = 0;
+                            player.y = canvas.height - groundHeight - 50;
+                            player.health = 100; // Respawn with full health
+                        }
+                        document.getElementById('health').innerText = 'Health: ' + Math.round(player.health);
+                    }
+                    obstacle.x = -obstacle.width;
+                }
+            });
+
+            coins.forEach(coin => {
+                if (player.x < coin.x + coin.radius &&
+                    player.x + player.width > coin.x - coin.radius &&
+                    player.y < coin.y + coin.radius &&
+                    player.y + player.height > coin.y - coin.radius) {
+                    player.coins += 1;
+                    document.getElementById('coins').innerText = 'Coins: ' + player.coins;
+                    coin.x = -coin.radius;
+                    updateScore(1000); // Increase score by 10 for each coin
+                    saveCoins(); // Save coins to localStorage
+                }
+            });
+        }
+
+        function activateNitro() {
+            nitroActive = true;
+            speed *= 6; // 600% speed increase
+            document.getElementById('nitro').innerText = 'Nitro: Active';
+            setTimeout(() => {
+                nitroActive = false;
+                speed /= 6;
+                document.getElementById('nitro').innerText = 'Nitro: Inactive';
+                nitroTimer = 0; // Reset the nitro timer
+            }, nitroDuration);
+        }
+
+        function generateObstacles() {
+            if (obstacleTimer > nextObstacleDistance / speed) { // Variable distance based on speed
+                obstacles.push({ x: canvas.width, y: canvas.height - groundHeight - 50, width: 50, height: 50 });
+                obstacleTimer = 0;
+                nextObstacleDistance = Math.random() * 300 + 500; // Increased distance between obstacles
+            }
+            obstacleTimer++;
+        }
+
+        function generateCoins() {
+            if (coinTimer > 100) { // Every 100 frames
+                coins.push({ x: canvas.width, y: Math.random() * (canvas.height - groundHeight - 100), radius: 15 });
+                coinTimer = 0;
+            }
+            coinTimer++;
+        }
+
+        function openShop() {
+            if (player.coins >= 10) {
+                const buyGlider = confirm("Do you want to buy the glider for 10 coins?");
+                if (buyGlider) {
+                    player.coins -= 10;
+                    player.hasGlider = true;
+                    document.getElementById('coins').innerText = 'Coins: ' + player.coins;
+                    alert("You have purchased the glider! Press Spacebar or Up Arrow to fly.");
+                    saveCoins(); // Save updated coins to localStorage
+                }
+            } else {
+                alert("You don't have enough coins to buy the glider.");
+            }
+        }
+
+        function updateScore(points) {
+            score += points;
+            document.getElementById('score').innerText = 'Score: ' + score;
+        }
+
+        function saveCoins() {
+            localStorage.setItem('coins', player.coins);
+        }
+
+        function loadCoins() {
+            const savedCoins = localStorage.getItem('coins');
+            if (savedCoins !== null) {
+                player.coins = parseInt(savedCoins, 10);
+                document.getElementById('coins').innerText = 'Coins: ' + player.coins;
+            }
+        }
+
+        function executeCommand(command) {
+            if (command === '/buyglider') {
+                player.hasGlider = true;
+                alert('You got the glider for free! Press Spacebar or Up Arrow to fly.');
+            } else {
+                alert('Unknown command: ' + command);
+            }
+        }
+
+        function gameLoop() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawGround();
+            drawPlayer();
+            drawObstacles();
+            drawCoins();
+            applyGravity();
+            handleCollisions();
+            generateObstacles();
+            if (nitroTimer > nitroCooldown) nitroAvailable = true;
+            generateCoins();
+            nitroTimer += 16.67;
+            requestAnimationFrame(gameLoop);
+        }
+
+        loadCoins(); // Load coins from previous sessions
+        gameLoop();
+
         window.addEventListener('keydown', (e) => {
-            if (e.key === 'ArrowRight' || e.key === 'd') {
-                player.x += player.speed; // Move right
-            } else if (e.key === 'ArrowLeft' || e.key === 'a') {
-                player.x -= player.speed; // Move left
-            } else if (e.key === 'ArrowUp' || e.key === 'w') {
-                player.y -= player.speed; // Move up
-            } else if (e.key === 'ArrowDown' || e.key === 's') {
-                player.y += player.speed; // Move down
+            if (e.code === 'ShiftLeft' && nitroAvailable) {
+                activateNitro();
+                nitroAvailable = false;
+            }
+            if ((e.code === 'Space' || e.code === 'ArrowUp') && !player.jumping && !player.sliding) {
+                if (player.hasGlider) {
+                    player.dy = -10; // Glider controls for flying
+                } else {
+                    player.dy = -20;
+                }
+                player.jumping = true;
+            }
+            if (e.code === 'ArrowDown' && !player.jumping) {
+                player.y = canvas.height - groundHeight;
+                player.sliding = true;
+            }
+            if (e.code === 'KeyS') {
+                openShop();
             }
         });
 
-        // Start the game once both images are loaded
-        playerImage.onload = obstacleImage.onload = function() {
-            updateGame();
-        };
+        // Command Bar
+        document.getElementById('commandBar').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                const command = e.target.value.trim();
+                executeCommand(command);
+                e.target.value = ''; // Clear the command bar after executing the command
+            }
+        });
+
+        // Mobile Controls
+        canvas.addEventListener('touchstart', (e) => {
+            const touchX = e.touches[0].clientX;
+            const touchY = e.touches[0].clientY;
+
+            if (touchX < canvas.width / 2 && !player.jumping && !player.sliding) {
+                if (player.hasGlider) {
+                    player.dy = -10; // Glider controls for flying
+                } else {
+                    player.dy = -20;
+                }
+                player.jumping = true;
+            } else if (touchX > canvas.width / 2 && !player.jumping) {
+                player.y = canvas.height - groundHeight;
+                player.sliding = true;
+            }
+        });
+
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        });
+    </script>
+</body>
+</html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Platypus Runner</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: #f0f0f0; }
+        canvas { display: block; background: #87CEEB; }
+        #health { position: absolute; top: 10px; left: 10px; font-size: 20px; }
+        #coins { position: absolute; top: 10px; left: 150px; font-size: 20px; }
+        #nitro { position: absolute; top: 10px; right: 10px; font-size: 20px; }
+        #shop { position: absolute; top: 50px; left: 10px; font-size: 20px; cursor: pointer; }
+        #score { position: absolute; top: 90px; left: 10px; font-size: 20px; }
+        #commandBar { position: absolute; bottom: 10px; left: 10px; width: 300px; font-size: 20px; }
+    </style>
+</head>
+<body>
+    <div id="health">Health: 100</div>
+    <div id="coins">Coins: 0</div>
+    <div id="nitro">Nitro: Inactive</div>
+    <div id="shop">Press 'S' to open shop</div>
+    <div id="score">Score: 0</div>
+    <input type="text" id="commandBar" placeholder="Type command here...">
+
+    <canvas id="gameCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        const gravity = 9.8;
+        const groundHeight = 100; // Height of the ground
+        let player = { x: 50, y: canvas.height - groundHeight - 50, width: 50, height: 50, dy: 0, jumping: false, sliding: false, health: 100, coins: 0, hasGlider: false };
+        let obstacles = [];
+        let coins = [];
+        let nitroAvailable = false;
+        let nitroActive = false;
+        let speed = 5;
+        let nitroTimer = 0;
+        let nitroCooldown = 120000; // 2 minutes
+        let nitroDuration = 20000; // 20 seconds
+        let obstacleTimer = 0;
+        let coinTimer = 0;
+        let shopOpen = false;
+        let score = 0;
+        let nextObstacleDistance = Math.random() * 300 + 500; // Increased distance between obstacles
+
+        function drawPlayer() {
+            let img = new Image();
+            img.src = 'perry.jpg'; // Placeholder image URL
+            ctx.drawImage(img, player.x, player.y, player.width, player.height);
+        }
+
+        function drawGround() {
+            ctx.fillStyle = '#654321';
+            ctx.fillRect(0, canvas.height - groundHeight, canvas.width, groundHeight);
+        }
+
+        function drawObstacles() {
+            ctx.fillStyle = 'red';
+            obstacles.forEach(obstacle => {
+                obstacle.x -= speed;
+                ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+            });
+            obstacles = obstacles.filter(obstacle => obstacle.x + obstacle.width > 0);
+        }
+
+        function drawCoins() {
+            ctx.fillStyle = 'yellow';
+            coins.forEach(coin => {
+                coin.x -= speed;
+                ctx.beginPath();
+                ctx.arc(coin.x, coin.y, coin.radius, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.closePath();
+            });
+            coins = coins.filter(coin => coin.x + coin.radius > 0);
+        }
+
+        function applyGravity() {
+            if (!player.hasGlider && (player.jumping || player.sliding)) {
+                player.dy += gravity * 0.1;
+                player.y += player.dy;
+                if (player.y + player.height >= canvas.height - groundHeight && !player.sliding) {
+                    player.y = canvas.height - groundHeight - 50;
+                    player.dy = 0;
+                    player.jumping = false;
+                }
+                if (player.y + player.height >= canvas.height - groundHeight + 50 && player.sliding) {
+                    player.y = canvas.height - groundHeight;
+                    player.dy = 0;
+                    player.sliding = false;
+                }
+            }
+        }
+
+        function handleCollisions() {
+            obstacles.forEach(obstacle => {
+                if (player.x < obstacle.x + obstacle.width &&
+                    player.x + player.width > obstacle.x &&
+                    player.y < obstacle.y + obstacle.height &&
+                    player.y + player.height > obstacle.y) {
+                    if (!nitroActive) {
+                        player.health -= player.health * 0.1;
+                        if (player.health <= 0) {
+                            player.health = 0;
+                            player.y = canvas.height - groundHeight - 50;
+                            player.health = 100; // Respawn with full health
+                        }
+                        document.getElementById('health').innerText = 'Health: ' + Math.round(player.health);
+                    }
+                    obstacle.x = -obstacle.width;
+                }
+            });
+
+            coins.forEach(coin => {
+                if (player.x < coin.x + coin.radius &&
+                    player.x + player.width > coin.x - coin.radius &&
+                    player.y < coin.y + coin.radius &&
+                    player.y + player.height > coin.y - coin.radius) {
+                    player.coins += 1;
+                    document.getElementById('coins').innerText = 'Coins: ' + player.coins;
+                    coin.x = -coin.radius;
+                    updateScore(1000); // Increase score by 10 for each coin
+                    saveCoins(); // Save coins to localStorage
+                }
+            });
+        }
+
+        function activateNitro() {
+            nitroActive = true;
+            speed *= 6; // 600% speed increase
+            document.getElementById('nitro').innerText = 'Nitro: Active';
+            setTimeout(() => {
+                nitroActive = false;
+                speed /= 6;
+                document.getElementById('nitro').innerText = 'Nitro: Inactive';
+                nitroTimer = 0; // Reset the nitro timer
+            }, nitroDuration);
+        }
+
+        function generateObstacles() {
+            if (obstacleTimer > nextObstacleDistance / speed) { // Variable distance based on speed
+                obstacles.push({ x: canvas.width, y: canvas.height - groundHeight - 50, width: 50, height: 50 });
+                obstacleTimer = 0;
+                nextObstacleDistance = Math.random() * 300 + 500; // Increased distance between obstacles
+            }
+            obstacleTimer++;
+        }
+
+        function generateCoins() {
+            if (coinTimer > 100) { // Every 100 frames
+                coins.push({ x: canvas.width, y: Math.random() * (canvas.height - groundHeight - 100), radius: 15 });
+                coinTimer = 0;
+            }
+            coinTimer++;
+        }
+
+        function openShop() {
+            if (player.coins >= 10) {
+                const buyGlider = confirm("Do you want to buy the glider for 10 coins?");
+                if (buyGlider) {
+                    player.coins -= 10;
+                    player.hasGlider = true;
+                    document.getElementById('coins').innerText = 'Coins: ' + player.coins;
+                    alert("You have purchased the glider! Press Spacebar or Up Arrow to fly.");
+                    saveCoins(); // Save updated coins to localStorage
+                }
+            } else {
+                alert("You don't have enough coins to buy the glider.");
+            }
+        }
+
+        function updateScore(points) {
+            score += points;
+            document.getElementById('score').innerText = 'Score: ' + score;
+        }
+
+        function saveCoins() {
+            localStorage.setItem('coins', player.coins);
+        }
+
+        function loadCoins() {
+            const savedCoins = localStorage.getItem('coins');
+            if (savedCoins !== null) {
+                player.coins = parseInt(savedCoins, 10);
+                document.getElementById('coins').innerText = 'Coins: ' + player.coins;
+            }
+        }
+
+        function executeCommand(command) {
+            if (command === '/buyglider') {
+                player.hasGlider = true;
+                alert('You got the glider for free! Press Spacebar or Up Arrow to fly.');
+            } else {
+                alert('Unknown command: ' + command);
+            }
+        }
+
+        function gameLoop() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawGround();
+            drawPlayer();
+            drawObstacles();
+            drawCoins();
+            applyGravity();
+            handleCollisions();
+            generateObstacles();
+            if (nitroTimer > nitroCooldown) nitroAvailable = true;
+            generateCoins();
+            nitroTimer += 16.67;
+            requestAnimationFrame(gameLoop);
+        }
+
+        loadCoins(); // Load coins from previous sessions
+        gameLoop();
+
+        window.addEventListener('keydown', (e) => {
+            if (e.code === 'ShiftLeft' && nitroAvailable) {
+                activateNitro();
+                nitroAvailable = false;
+            }
+            if ((e.code === 'Space' || e.code === 'ArrowUp') && !player.jumping && !player.sliding) {
+                if (player.hasGlider) {
+                    player.dy = -10; // Glider controls for flying
+                } else {
+                    player.dy = -20;
+                }
+                player.jumping = true;
+            }
+            if (e.code === 'ArrowDown' && !player.jumping) {
+                player.y = canvas.height - groundHeight;
+                player.sliding = true;
+            }
+            if (e.code === 'KeyS') {
+                openShop();
+            }
+        });
+
+        // Command Bar
+        document.getElementById('commandBar').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                const command = e.target.value.trim();
+                executeCommand(command);
+                e.target.value = ''; // Clear the command bar after executing the command
+            }
+        });
+
+        // Mobile Controls
+        canvas.addEventListener('touchstart', (e) => {
+            const touchX = e.touches[0].clientX;
+            const touchY = e.touches[0].clientY;
+
+            if (touchX < canvas.width / 2 && !player.jumping && !player.sliding) {
+                if (player.hasGlider) {
+                    player.dy = -10; // Glider controls for flying
+                } else {
+                    player.dy = -20;
+                }
+                player.jumping = true;
+            } else if (touchX > canvas.width / 2 && !player.jumping) {
+                player.y = canvas.height - groundHeight;
+                player.sliding = true;
+            }
+        });
+
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        });
     </script>
 </body>
 </html>
