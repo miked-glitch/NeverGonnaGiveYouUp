@@ -24,7 +24,6 @@
     <div id="usernameInputScreen">
         Enter your username: <input type="text" id="usernameInput"><button id="submitUsername">Start Game</button>
     </div>
-    <div id="health">Health: 100</div>
     <div id="coins">Coins: 0</div>
     <div id="nitro">Nitro: Inactive</div>
     <div id="shop">Press 'S' to open shop</div>
@@ -138,7 +137,7 @@
                     player.coins += 1;
                     document.getElementById('coins').innerText = 'Coins: ' + player.coins;
                     coin.x = -coin.radius;
-                    updateScore(10); // Increase score by 10 for each coin
+                    updateScore(1000); // Increase score by 1000 for each coin
                     saveCoins();
                 }
             });
