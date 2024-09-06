@@ -62,7 +62,7 @@
         let username = '';
         let admins = JSON.parse(localStorage.getItem('admins')) || [];
         let leaderboard = JSON.parse(localStorage.getItem('leaderboard')) || [];
-        
+
         function drawPlayer() {
             let img = new Image();
             img.src = player.boatEquipped ? 'boat.jpg' : 'perry.jpg';
@@ -73,7 +73,7 @@
             ctx.fillStyle = player.boatEquipped ? 'blue' : '#654321';
             const img = new Image();
             img.src = player.boatEquipped ? 'water.jpg' : '';
-            if (img.src) {
+            if (player.boatEquipped) {
                 ctx.drawImage(img, 0, canvas.height - groundHeight, canvas.width, groundHeight);
             } else {
                 ctx.fillRect(0, canvas.height - groundHeight, canvas.width, groundHeight);
@@ -82,7 +82,7 @@
 
         function drawObstacles() {
             let img = new Image();
-            img.src = 'Doofenshmirtz.jpg';
+            img.src = 'doofenshmirtz.jpg';
             obstacles.forEach(obstacle => {
                 obstacle.x -= speed;
                 ctx.drawImage(img, obstacle.x, obstacle.y, obstacle.width, obstacle.height);
@@ -373,7 +373,10 @@
                 player.jumping = true;
             }
             if (e.code === 'KeyS') {
-                openShop();
+                const activeElement = document.activeElement;
+                if (activeElement.id !== 'commandBar') { // Only open the shop if focus isn't on the command bar
+                    openShop();
+                }
             }
         });
     </script>
