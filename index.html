@@ -24,6 +24,7 @@
     <div id="usernameInputScreen">
         Enter your username: <input type="text" id="usernameInput"><button id="submitUsername">Start Game</button>
     </div>
+    <div id="health">Health: 100</div>
     <div id="coins">Coins: 0</div>
     <div id="nitro">Nitro: Inactive</div>
     <div id="shop">Press 'S' to open shop</div>
@@ -39,9 +40,12 @@
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
 
-        const gravity = 12; // Decreased gravity for more control
+        const gravity = 12;
         const groundHeight = 100;
-        let player = { x: 50, y: canvas.height - groundHeight - 50, width: 50, height: 50, dy: 0, jumping: false, sliding: false, health: 100, coins: 0, hasGlider: false };
+        let player = {
+            x: 50, y: canvas.height - groundHeight - 50, width: 50, height: 50,
+            dy: 0, jumping: false, sliding: false, health: 100, coins: 0, hasGlider: false, hasBoat: false, boatEquipped: false
+        };
         let obstacles = [];
         let coins = [];
         let nitroAvailable = false;
@@ -54,26 +58,31 @@
         let coinTimer = 0;
         let shopOpen = false;
         let score = 0;
-        let nextObstacleDistance = Math.random() * 300 + 300; // Randomized obstacle distance
+        let nextObstacleDistance = Math.random() * 300 + 300;
         let username = '';
         let admins = JSON.parse(localStorage.getItem('admins')) || [];
         let leaderboard = JSON.parse(localStorage.getItem('leaderboard')) || [];
         
-        // Helper functions for drawing, obstacles, and coins
         function drawPlayer() {
             let img = new Image();
-            img.src = 'perry.jpg'; // Replace with your player's image path
+            img.src = player.boatEquipped ? 'boat.jpg' : 'perry.jpg'; // Show boat if equipped
             ctx.drawImage(img, player.x, player.y, player.width, player.height);
         }
 
         function drawGround() {
-            ctx.fillStyle = '#654321';
-            ctx.fillRect(0, canvas.height - groundHeight, canvas.width, groundHeight);
+            ctx.fillStyle = player.boatEquipped ? 'blue' : '#654321'; // Water or ground
+            const img = new Image();
+            img.src = player.boatEquipped ? 'water.jpg' : '';
+            if (img.src) {
+                ctx.drawImage(img, 0, canvas.height - groundHeight, canvas.width, groundHeight);
+            } else {
+                ctx.fillRect(0, canvas.height - groundHeight, canvas.width, groundHeight);
+            }
         }
 
         function drawObstacles() {
             let img = new Image();
-            img.src = 'Doofenshmirtz.jpg'; // Replace with your obstacle image path
+            img.src = 'doofenshmirtz.jpg';
             obstacles.forEach(obstacle => {
                 obstacle.x -= speed;
                 ctx.drawImage(img, obstacle.x, obstacle.y, obstacle.width, obstacle.height);
@@ -137,7 +146,7 @@
                     player.coins += 1;
                     document.getElementById('coins').innerText = 'Coins: ' + player.coins;
                     coin.x = -coin.radius;
-                    updateScore(1000); // Increase score by 1000 for each coin
+                    updateScore(10); // Increase score by 10 for each coin
                     saveCoins();
                 }
             });
@@ -160,7 +169,7 @@
                 let randomHeight = canvas.height - groundHeight - Math.random() * 50 - 50;
                 obstacles.push({ x: canvas.width, y: randomHeight, width: 50, height: 50 });
                 obstacleTimer = 0;
-                nextObstacleDistance = Math.random() * 300 + 500; // Random obstacle distance
+                nextObstacleDistance = Math.random() * 300 + 500;
             }
             obstacleTimer++;
         }
@@ -211,8 +220,9 @@
         }
 
         function executeCommand(command) {
-            if (command.startsWith(':admin ')) {
-                const newAdmin = command.split(' ')[1].replace(/"/g, '');
+            const cmdParts = command.split(' ');
+            if (cmdParts[0] === ':admin') {
+                const newAdmin = cmdParts[1].replace(/"/g, '');
                 if (!admins.includes(newAdmin)) {
                     admins.push(newAdmin);
                     alert(`${newAdmin} is now an admin.`);
@@ -220,17 +230,58 @@
                 } else {
                     alert(`${newAdmin} is already an admin.`);
                 }
+            } else if (cmdParts[0] === ':givecoin') {
+                const recipient = cmdParts[1].replace(/"/g, '');
+                const amount = parseInt(cmdParts[2], 10);
+                if (!isNaN(amount)) {
+                    leaderboard.forEach(entry => {
+                        if (entry.username === recipient) {
+                            entry.coins += amount;
+                            alert(`${amount} coins given to ${recipient}`);
+                            saveLeaderboard();
+                        }
+                    });
+                }
+            } else if (cmdParts[0] === ':givescore') {
+                const recipient = cmdParts[1].replace(/"/g, '');
+                const amount = parseInt(cmdParts[2], 10);
+                if (!isNaN(amount)) {
+                    leaderboard.forEach(entry => {
+                        if (entry.username === recipient) {
+                            entry.score += amount;
+                            alert(`${amount} score given to ${recipient}`);
+                            saveLeaderboard();
+                        }
+                    });
+                }
+            }
+        }
+
+        function openShop() {
+            if (!shopOpen) {
+                let shopChoice = prompt("Type 'buy boat' to buy the boat (100 coins) or 'exit' to close the shop.");
+                if (shopChoice === 'buy boat' && player.coins >= 100) {
+                    player.coins -= 100;
+                    player.hasBoat = true;
+                    document.getElementById('coins').innerText = 'Coins: ' + player.coins;
+                    saveCoins();
+                    alert("You bought a boat! Use 'equip' or 'unequip' to toggle the boat.");
+                } else if (shopChoice === 'equip' && player.hasBoat) {
+                    player.boatEquipped = true;
+                    alert("Boat equipped!");
+                } else if (shopChoice === 'unequip' && player.hasBoat) {
+                    player.boatEquipped = false;
+                    alert("Boat unequipped!");
+                }
             }
         }
 
         function restartGame() {
-            // Save the score to the leaderboard before restarting
             leaderboard.push({ username: username, score: score });
             leaderboard.sort((a, b) => b.score - a.score);
-            if (leaderboard.length > 10) leaderboard = leaderboard.slice(0, 10); // Keep only the top 10
+            if (leaderboard.length > 10) leaderboard = leaderboard.slice(0, 10);
             saveLeaderboard();
 
-            // Reset player stats
             player.health = 100;
             player.coins = 0;
             score = 0;
@@ -239,14 +290,12 @@
             document.getElementById('coins').innerText = 'Coins: 0';
             document.getElementById('score').innerText = 'Score: 0';
 
-            // Reset game state
             obstacles = [];
             coins = [];
             nitroAvailable = false;
             nitroActive = false;
             speed = 5;
 
-            // Restart game loop
             gameLoop();
         }
 
@@ -278,13 +327,12 @@
                 if (entry.username.startsWith(username)) duplicateCount++;
             });
             if (duplicateCount > 0) {
-                username += duplicateCount; // Add serial number if there's a duplicate
+                username += duplicateCount;
             }
-            localStorage.setItem('username', username); // Save the username
+            localStorage.setItem('username', username);
             startGame();
         });
 
-        // Load saved username if available
         window.onload = () => {
             const savedUsername = localStorage.getItem('username');
             if (savedUsername) {
@@ -309,10 +357,9 @@
         // Mobile controls
         canvas.addEventListener('touchstart', (e) => {
             const touchX = e.touches[0].clientX;
-
             if (touchX < canvas.width / 2 && !player.jumping) {
                 if (player.hasGlider) {
-                    player.dy = -10; // Glider controls for flying
+                    player.dy = -10;
                 } else {
                     player.dy = -20;
                 }
@@ -328,13 +375,17 @@
             }
             if (e.code === 'Space' && !player.jumping) {
                 if (player.hasGlider) {
-                    player.dy = -10; // Glider controls for flying
+                    player.dy = -10;
                 } else {
                     player.dy = -20;
                 }
                 player.jumping = true;
             }
+            if (e.code === 'KeyS') {
+                openShop();
+            }
         });
     </script>
 </body>
 </html>
+
