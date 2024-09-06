@@ -65,12 +65,12 @@
         
         function drawPlayer() {
             let img = new Image();
-            img.src = player.boatEquipped ? 'boat.jpg' : 'perry.jpg'; // Show boat if equipped
+            img.src = player.boatEquipped ? 'boat.jpg' : 'perry.jpg';
             ctx.drawImage(img, player.x, player.y, player.width, player.height);
         }
 
         function drawGround() {
-            ctx.fillStyle = player.boatEquipped ? 'blue' : '#654321'; // Water or ground
+            ctx.fillStyle = player.boatEquipped ? 'blue' : '#654321';
             const img = new Image();
             img.src = player.boatEquipped ? 'water.jpg' : '';
             if (img.src) {
@@ -221,16 +221,7 @@
 
         function executeCommand(command) {
             const cmdParts = command.split(' ');
-            if (cmdParts[0] === ':admin') {
-                const newAdmin = cmdParts[1].replace(/"/g, '');
-                if (!admins.includes(newAdmin)) {
-                    admins.push(newAdmin);
-                    alert(`${newAdmin} is now an admin.`);
-                    saveAdmins();
-                } else {
-                    alert(`${newAdmin} is already an admin.`);
-                }
-            } else if (cmdParts[0] === ':givecoin') {
+            if (cmdParts[0] === '/givecoins') {
                 const recipient = cmdParts[1].replace(/"/g, '');
                 const amount = parseInt(cmdParts[2], 10);
                 if (!isNaN(amount)) {
@@ -242,7 +233,7 @@
                         }
                     });
                 }
-            } else if (cmdParts[0] === ':givescore') {
+            } else if (cmdParts[0] === '/givescore') {
                 const recipient = cmdParts[1].replace(/"/g, '');
                 const amount = parseInt(cmdParts[2], 10);
                 if (!isNaN(amount)) {
@@ -388,4 +379,5 @@
     </script>
 </body>
 </html>
+
 
